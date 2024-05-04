@@ -14,4 +14,4 @@ keras-nlp
 keras
 kaggle
 tensorboard
-wandb
+

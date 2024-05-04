@@ -9,7 +9,8 @@
 		"ms-toolsai.jupyter",
 		"ms-vscode-remote.remote-containers",
 		"ms-python.debugpy",
-		"ms-python.vscode-pylance"
+		"ms-python.vscode-pylance",
+		"ms-toolsai.tensorboard"
 	],
 
 	"build":{
