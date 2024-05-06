@@ -2,6 +2,10 @@
 **/logs/*
 **/MyDataset*
 
+# wandb
+**/wandb/
+# filetypes
+*.keras
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

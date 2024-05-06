@@ -1,0 +1,11 @@
+project_name: Day2
+username: frizzerdk
+epochs: 50
+param_scale: 1.0
+dropout_rate: 0.5
+learning_rate: 0.001
+batch_size: 128
+patience: 20
+is_sweep: False
+checkpoint_path: ./checkpoints
+best_model_path: ${checkpoint_path}/best_model.keras
