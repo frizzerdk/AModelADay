@@ -22,8 +22,8 @@
 		"--env-file", ".env"
 
 		
-    ]//,
-	//"postCreateCommand": "pip install -e /workspaces/Kaggle/AFAIKernel",
+    ],
+	"postCreateCommand": "pip install -e /workspaces/AModelADay/MyUtils",
 
 	// Features to add to the dev container. More info: https://containers.dev/features.
 	// "features": {},

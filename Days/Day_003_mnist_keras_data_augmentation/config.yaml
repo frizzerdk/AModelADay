@@ -1,0 +1,27 @@
+project_name: Day3
+username: frizzerdk
+
+is_sweep: False
+
+
+preprocessed_data_path: ./data/preprocessed
+x_train_path: ${preprocessed_data_path}/x_train.npy
+y_train_path: ${preprocessed_data_path}/y_train.npy
+x_test_path: ${preprocessed_data_path}/x_test.npy
+x_val_path: ${preprocessed_data_path}/x_val.npy
+y_val_path: ${preprocessed_data_path}/y_val.npy
+
+checkpoint_path: ./checkpoints
+best_model_path: ${checkpoint_path}/best_model.keras
+
+num_classes: 10
+input_shape: [28, 28, 1]
+
+activation: relu
+
+epochs: 50
+param_scale: 1.0
+dropout_rate: 0.5
+learning_rate: 0.001
+batch_size: 128
+patience: 20
