@@ -1,6 +1,31 @@
 import hydra
 from omegaconf import OmegaConf
 import os
+# my_package/augmentation.py
+import tensorflow as tf
+from keras import layers
+
+def get_data_augmentation_layers(cfg):
+    # Convert the entire OmegaConf object to a regular Python dict if it's not already a dict
+    if not isinstance(cfg, dict):
+        cfg = OmegaConf.to_container(cfg, resolve=True)
+    
+    data_augmentation = tf.keras.Sequential()
+    for layer_name, layer_config in cfg['layers'].items():
+        layer_type = getattr(layers, layer_name)
+        
+        # Get positional arguments if present
+        args = layer_config.get('args', [])
+        
+        # Get keyword arguments if present
+        kwargs = layer_config.get('kwargs', {})
+        
+        # Instantiate the layer with positional and keyword arguments
+        layer = layer_type(*args, **kwargs)
+        data_augmentation.add(layer)
+    
+    return data_augmentation
+
 def is_sweep():
     """
     Check if the current run is part of a WandB sweep.
@@ -8,6 +33,9 @@ def is_sweep():
     if wandb.run is None:
         return False
     return wandb.run.sweep_id is not None
+from omegaconf import OmegaConf
+import wandb
+
 def load_and_override_config(config_dir, config_name, manual_overrides={}):
     """
     Load configuration with Hydra, manually override parameters, and integrate with WandB.
@@ -20,26 +48,49 @@ def load_and_override_config(config_dir, config_name, manual_overrides={}):
     Returns:
     - OmegaConf.DictConfig: The final configuration object after all overrides.
     """
+    def unflatten_dict(d, sep='.'):
+        """
+        Unflatten a dictionary.
+
+        Args:
+        - d (dict): Dictionary to unflatten.
+        - sep (str): Separator used in the flattened keys.
+
+        Returns:
+        - dict: Unflattened dictionary.
+        """
+        unflattened_dict = {}
+        for key, value in d.items():
+            parts = key.split(sep)
+            d_ref = unflattened_dict
+            for part in parts[:-1]:
+                if part not in d_ref:
+                    d_ref[part] = {}
+                d_ref = d_ref[part]
+            d_ref[parts[-1]] = value
+        return unflattened_dict
 
     # Initialize Hydra and load the base configuration
-    # hydra.initialize(config_path=config_dir)
-    # cfg = hydra.compose(config_name + ".yaml")
     cfg = OmegaConf.load(f"{config_dir}/{config_name}.yaml")
     
     # Apply manual overrides
     cfg = OmegaConf.merge(cfg, OmegaConf.create(manual_overrides))
     
-    
     # Check if running under WandB and apply WandB configuration if it's a sweep
     if wandb.run is not None:
         # Assuming wandb has been initialized outside this function in your main workflow
         wandb_config = wandb.config
-        print("wandb_config",wandb_config)
-        cfg = OmegaConf.merge(cfg, OmegaConf.create(dict(wandb_config)))
+        print("wandb_config", wandb_config)
 
-    cfg.is_sweep= is_sweep()
-    print("cfg",cfg)
+        # Unflatten WandB config for correct nested parameter overriding
+        unflattened_wandb_config = unflatten_dict(dict(wandb_config))
+        print("unflattened_wandb_config", unflattened_wandb_config)
+        cfg = OmegaConf.merge(cfg, OmegaConf.create(unflattened_wandb_config))
+
+    cfg.is_sweep = is_sweep()
+    print("cfg", cfg)
     return cfg
+
 
 
 import wandb

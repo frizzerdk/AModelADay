@@ -9,27 +9,35 @@ import torch
 import tensorflow as tf
 import os
 import sys
-
-
 # Get the directory of the current script
 script_dir = os.path.dirname(os.path.abspath(__file__))
 # Change the current working directory to the script directory
 os.chdir(script_dir)
+gpus = tf.config.experimental.list_physical_devices('GPU')
+if gpus:
+    try:
+        for gpu in gpus:
+            tf.config.experimental.set_memory_growth(gpu, True)
+    except RuntimeError as e:
+        print(e)
 
-# Create an ArgumentParser object
-parser = argparse.ArgumentParser(description="Process input files and set verbosity.")
+def parse_args():
+    # Create an ArgumentParser object
+    parser = argparse.ArgumentParser(description="Process input files and set verbosity.")
 
-# Add arguments
-parser.add_argument('--is_sweep', type=bool, help='run sweep or not', default=False)
-parser.add_argument('--sweep_id', type=str, help='sweep id', default=None)
-# Parse the arguments
-args = parser.parse_args()
+    # Add arguments
+    parser.add_argument('--is_sweep', type=bool, help='run sweep or not', default=False)
+    parser.add_argument('--sweep_id', type=str, help='sweep id', default=None)
+    # Parse the arguments
+    args = parser.parse_args()
+    return args
 assert torch.cuda.is_available(), "No GPU available"
 
 def train():
     # Load configuration
     cfg = util.load_and_override_config(".", "config")
     wandb.init(project=cfg.project_name)
+    
     cfg = util.load_and_override_config(".", "config")
     print(OmegaConf.to_yaml(cfg))
     wandb.config = OmegaConf.to_container(
@@ -51,6 +59,14 @@ def train():
 
     val_dataset = tf.data.Dataset.from_tensor_slices((x_val, y_val))
     val_dataset = val_dataset.batch(cfg.batch_size).prefetch(tf.data.AUTOTUNE)
+
+    augmenter = util.get_data_augmentation_layers(cfg.data_augmentation)
+
+    def augment(x, y):
+        x = augmenter(x)
+        return x, y
+    
+    train_dataset = train_dataset.map(augment)
 
     num_classes = cfg.num_classes
     input_shape = tuple(cfg.input_shape)
@@ -100,13 +116,14 @@ def train():
     wandb.finish()
 
 if __name__ == "__main__":
-    # parse_args()
+    cfg = util.load_and_override_config(".", "config")
+    args = parse_args()
     is_sweep = args.is_sweep
     if is_sweep:
         # use sweep id if in args
         if args.sweep_id:
             sweep_id = args.sweep_id
-            wandb.agent(sweep_id, function=train)
+            wandb.agent(sweep_id, function=train,project=cfg.project_name)
         else:
             print("Please provide sweep_id")
     else:
