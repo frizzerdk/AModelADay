@@ -26,3 +26,4 @@ COPY requirements.txt .
 RUN pip install -r requirements.txt
 ENV PYTHONPATH="/workspaces/AModelADay:${PYTHONPATH}"
 ENV PATH /usr/local/cuda/bin:${PATH}
+

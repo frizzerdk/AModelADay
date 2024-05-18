@@ -15,4 +15,4 @@ keras
 kaggle
 tensorboard
 hydra-core
-
+numba

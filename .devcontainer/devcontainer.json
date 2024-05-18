@@ -20,8 +20,6 @@
         "--gpus", "all",
 		"-v", "${env:HOME}${env:USERPROFILE}/.kaggle:/root/.kaggle",
 		"--env-file", ".env"
-
-		
     ],
 	"postCreateCommand": "pip install -e /workspaces/AModelADay/MyUtils",
 

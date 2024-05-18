@@ -80,15 +80,15 @@ def load_and_override_config(config_dir, config_name, manual_overrides={}):
     if wandb.run is not None:
         # Assuming wandb has been initialized outside this function in your main workflow
         wandb_config = wandb.config
-        print("wandb_config", wandb_config)
+        print("wandb_config:\n", wandb_config)
 
         # Unflatten WandB config for correct nested parameter overriding
         unflattened_wandb_config = unflatten_dict(dict(wandb_config))
-        print("unflattened_wandb_config", unflattened_wandb_config)
+        print("unflattened_wandb_config:\n", unflattened_wandb_config)
         cfg = OmegaConf.merge(cfg, OmegaConf.create(unflattened_wandb_config))
 
     cfg.is_sweep = is_sweep()
-    print("cfg", cfg)
+    print("cfg: \n", cfg)
     return cfg
 
 

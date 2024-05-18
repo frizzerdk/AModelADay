@@ -118,6 +118,7 @@ def train():
 if __name__ == "__main__":
     cfg = util.load_and_override_config(".", "config")
     args = parse_args()
+    print("args: ", args)
     is_sweep = args.is_sweep
     if is_sweep:
         # use sweep id if in args
