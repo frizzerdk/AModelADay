@@ -2,6 +2,7 @@ project_name: Day3
 username: frizzerdk
 
 is_sweep: False
+sweep_count: 1
 
 
 preprocessed_data_path: ./data/preprocessed

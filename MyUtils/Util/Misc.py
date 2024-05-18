@@ -1,5 +1,7 @@
 import hydra
 from omegaconf import OmegaConf
+import wandb
+import argparse
 import os
 # my_package/augmentation.py
 import tensorflow as tf
@@ -33,9 +35,24 @@ def is_sweep():
     if wandb.run is None:
         return False
     return wandb.run.sweep_id is not None
-from omegaconf import OmegaConf
-import wandb
 
+def getArgsDict():
+    # Set up argument parsing to capture all arguments
+    parser = argparse.ArgumentParser(description='Example script with wandb and OmegaConf')
+    parser.add_argument('params', nargs=argparse.REMAINDER, help='Parameters in the form key=value')
+
+    # Parse the arguments
+    args = parser.parse_args()
+
+    # Convert the parsed parameters to a dictionary
+    args_dict = {}
+    for param in args.params:
+        if '=' in param:
+            key, value = param.split('=', 1)
+            args_dict[key] = value
+        else:
+            print(f"Ignoring invalid parameter: {param}")
+            
 def load_and_override_config(config_dir, config_name, manual_overrides={}):
     """
     Load configuration with Hydra, manually override parameters, and integrate with WandB.
@@ -92,8 +109,6 @@ def load_and_override_config(config_dir, config_name, manual_overrides={}):
     return cfg
 
 
-
-import wandb
 
 def get_or_create_sweep_id(project_name, sweep_config,force_create=False):
     """

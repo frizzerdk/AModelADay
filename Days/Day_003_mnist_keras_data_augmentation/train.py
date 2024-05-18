@@ -21,28 +21,19 @@ if gpus:
     except RuntimeError as e:
         print(e)
 
-def parse_args():
-    # Create an ArgumentParser object
-    parser = argparse.ArgumentParser(description="Process input files and set verbosity.")
 
-    # Add arguments
-    parser.add_argument('--is_sweep', type=bool, help='run sweep or not', default=False)
-    parser.add_argument('--sweep_id', type=str, help='sweep id', default=None)
-    # Parse the arguments
-    args = parser.parse_args()
-    return args
 assert torch.cuda.is_available(), "No GPU available"
 
 def train():
     # Load configuration
     cfg = util.load_and_override_config(".", "config")
     wandb.init(project=cfg.project_name)
-    
     cfg = util.load_and_override_config(".", "config")
     print(OmegaConf.to_yaml(cfg))
     wandb.config = OmegaConf.to_container(
         cfg, resolve=True, throw_on_missing=True
     )
+    
     # Load the data
     x_train = np.load(cfg.x_train_path)
     y_train = np.load(cfg.y_train_path)
@@ -116,17 +107,5 @@ def train():
     wandb.finish()
 
 if __name__ == "__main__":
-    cfg = util.load_and_override_config(".", "config")
-    args = parse_args()
-    print("args: ", args)
-    is_sweep = args.is_sweep
-    if is_sweep:
-        # use sweep id if in args
-        if args.sweep_id:
-            sweep_id = args.sweep_id
-            wandb.agent(sweep_id, function=train,project=cfg.project_name)
-        else:
-            print("Please provide sweep_id")
-    else:
-        train()
+    train()
 

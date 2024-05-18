@@ -8,6 +8,9 @@ RUN apt-get update && apt-get install -y git
 #tmux
 RUN apt-get update && apt-get install -y tmux
 
+RUN apt-get update && apt-get install -y python-is-python3
+
+
 RUN git config --global user.name "frizzerdk"
 RUN git config --global user.email "frizzerdk@gmail.com"
 
@@ -25,5 +28,6 @@ COPY requirements.txt .
 # Install Python dependencies from requirements.txt
 RUN pip install -r requirements.txt
 ENV PYTHONPATH="/workspaces/AModelADay:${PYTHONPATH}"
+RUN echo "alias python=python3" >> /root/.bashrc
 ENV PATH /usr/local/cuda/bin:${PATH}
 
