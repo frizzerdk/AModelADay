@@ -22,7 +22,7 @@ activation: relu
 epochs: 100
 param_scale: 2.0
 dropout_rate: 0.1
-learning_rate: 0.0003
+learning_rate: .001
 batch_size: 64
 patience: 20
 
@@ -36,22 +36,22 @@ data_augmentation:
     #     mode: "horizontal_and_vertical"
     RandomTranslation:
       kwargs:
-        height_factor: 0.2
-        width_factor: 0.2
+        height_factor: 0.0
+        width_factor: 0.0
         fill_mode: "constant"
     RandomRotation:
       kwargs:
-        factor: 0.2
+        factor: 0.0
         fill_mode: "constant"           
     RandomZoom:
       kwargs:
-        height_factor: 0.2
-        width_factor: 0.2
+        height_factor: 0.0
+        width_factor: 0.0
         fill_mode: "constant"
     RandomContrast:
       kwargs:
-        factor: 0.2       
+        factor: 0.0       
     RandomBrightness:
       kwargs:
-        factor: 0.5
+        factor: 0.0
         value_range: [0.0, 1.0]
