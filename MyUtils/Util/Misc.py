@@ -53,7 +53,7 @@ def getArgsDict():
         else:
             print(f"Ignoring invalid parameter: {param}")
             
-def load_and_override_config(config_dir, config_name, manual_overrides={}):
+def load_and_override_config(config_dir, config_name, manual_overrides={}, init_wandb=False,update_wandb=True):
     """
     Load configuration with Hydra, manually override parameters, and integrate with WandB.
 
@@ -93,6 +93,9 @@ def load_and_override_config(config_dir, config_name, manual_overrides={}):
     # Apply manual overrides
     cfg = OmegaConf.merge(cfg, OmegaConf.create(manual_overrides))
     
+    if wandb.run is None and init_wandb:
+        # Initialize WandB if it's not already initialized
+        wandb.init(project=cfg.project_name)
     # Check if running under WandB and apply WandB configuration if it's a sweep
     if wandb.run is not None:
         # Assuming wandb has been initialized outside this function in your main workflow
@@ -103,9 +106,17 @@ def load_and_override_config(config_dir, config_name, manual_overrides={}):
         unflattened_wandb_config = unflatten_dict(dict(wandb_config))
         print("unflattened_wandb_config:\n", unflattened_wandb_config)
         cfg = OmegaConf.merge(cfg, OmegaConf.create(unflattened_wandb_config))
+    
+    # Update the WandB configuration with the final configuration
+    if update_wandb and wandb.run is not None:
+        wandb.config.update(OmegaConf.to_container(
+            cfg, resolve=True, throw_on_missing=True
+        ))
+    
 
     cfg.is_sweep = is_sweep()
-    print("cfg: \n", cfg)
+    print("cfg: \n", OmegaConf.to_yaml(cfg))
+    print("cfg_resolved: \n", OmegaConf.to_yaml(cfg,resolve=True))
     return cfg
 
 

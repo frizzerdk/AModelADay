@@ -26,13 +26,14 @@ assert torch.cuda.is_available(), "No GPU available"
 
 def train():
     # Load configuration
-    cfg = util.load_and_override_config(".", "config")
-    wandb.init(project=cfg.project_name)
-    cfg = util.load_and_override_config(".", "config")
+    cfg = util.load_and_override_config(".", "config",init_wandb=True,update_wandb=True)
     print(OmegaConf.to_yaml(cfg))
-    wandb.config = OmegaConf.to_container(
-        cfg, resolve=True, throw_on_missing=True
-    )
+
+    # Initialize WandB
+    wandb.define_metric("epoch/val_acc", summary="max")
+    wandb.define_metric("epoch/val_loss", summary="min")
+    wandb.define_metric("epoch/train_acc", summary="max")
+    wandb.define_metric("epoch/train_loss", summary="min")
     
     # Load the data
     x_train = np.load(cfg.x_train_path)

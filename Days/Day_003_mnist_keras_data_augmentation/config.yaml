@@ -36,18 +36,20 @@ data_augmentation:
     #   kwargs:
     #     mode: "horizontal_and_vertical"
     RandomTranslation:
+      factor: 0.0
       kwargs:
-        height_factor: 0.0
-        width_factor: 0.0
+        height_factor: ${data_augmentation.layers.RandomTranslation.factor}
+        width_factor: ${data_augmentation.layers.RandomTranslation.factor}
         fill_mode: "constant"
     RandomRotation:
       kwargs:
         factor: 0.0
         fill_mode: "constant"           
     RandomZoom:
+      factor: 0.0
       kwargs:
-        height_factor: 0.0
-        width_factor: 0.0
+        height_factor: ${data_augmentation.layers.RandomZoom.factor}
+        width_factor: ${data_augmentation.layers.RandomZoom.factor}
         fill_mode: "constant"
     RandomContrast:
       kwargs:
