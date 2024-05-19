@@ -53,7 +53,7 @@ def getArgsDict():
         else:
             print(f"Ignoring invalid parameter: {param}")
             
-def load_and_override_config(config_dir, config_name, manual_overrides={}, init_wandb=False,update_wandb=True):
+def load_and_override_config(config_dir, config_name, manual_overrides={}, init_wandb=False,update_wandb=True,verbosity=0):
     """
     Load configuration with Hydra, manually override parameters, and integrate with WandB.
 
@@ -100,11 +100,13 @@ def load_and_override_config(config_dir, config_name, manual_overrides={}, init_
     if wandb.run is not None:
         # Assuming wandb has been initialized outside this function in your main workflow
         wandb_config = wandb.config
-        print("wandb_config:\n", wandb_config)
+        if verbosity > 1:
+            print("wandb_config:\n", wandb_config)
 
         # Unflatten WandB config for correct nested parameter overriding
         unflattened_wandb_config = unflatten_dict(dict(wandb_config))
-        print("unflattened_wandb_config:\n", unflattened_wandb_config)
+        if verbosity > 1:
+            print("unflattened_wandb_config:\n", unflattened_wandb_config)
         cfg = OmegaConf.merge(cfg, OmegaConf.create(unflattened_wandb_config))
     
     # Update the WandB configuration with the final configuration
@@ -115,8 +117,10 @@ def load_and_override_config(config_dir, config_name, manual_overrides={}, init_
     
 
     cfg.is_sweep = is_sweep()
-    print("cfg: \n", OmegaConf.to_yaml(cfg))
-    print("cfg_resolved: \n", OmegaConf.to_yaml(cfg,resolve=True))
+    if verbosity > 1:
+        print("cfg: \n", OmegaConf.to_yaml(cfg))
+    if verbosity > 0:
+        print("cfg_resolved: \n", OmegaConf.to_yaml(cfg,resolve=True))
     return cfg
 
 
@@ -159,7 +163,7 @@ def get_or_create_sweep_id(project_name, sweep_config,force_create=False):
             file.write(sweep_id)
     
     return sweep_id
-def cleanup_and_save_top_models(project_name, username, sweep_id, top_x, sort_metric="epoch/val_acc", artifact_name="best-model", delete_other=False, local_save_path="./best_models"):
+def cleanup_and_save_top_models(project_name, username, sweep_id, top_x, sort_metric="epoch/val_acc",sort_lambda=None, artifact_name="best-model", delete_other=False, local_save_path="./best_models"):
     """
     Identifies the top X best runs from a Weights & Biases sweep,
     deletes artifacts from the other runs, saves the top models locally for evaluation, and saves the best model overall as `overall_best_model`.
@@ -183,8 +187,11 @@ def cleanup_and_save_top_models(project_name, username, sweep_id, top_x, sort_me
     # Fetch all runs associated with the specified project and sweep
     runs = api.runs(path=project_path, filters={"sweep": sweep_id})
 
+    if sort_lambda is None:
+        sort_lambda = lambda run: run.summary.get(sort_metric, 0)
+
     # Sort runs by the specified metric, defaulting to 0 if the metric isn't found
-    sorted_runs = sorted(runs, key=lambda run: run.summary.get(sort_metric, 0), reverse=True)
+    sorted_runs = sorted(runs, key=sort_lambda, reverse=True)
     print(f"Found {len(sorted_runs)} runs in the sweep.")
 
     # Identify the top X runs
@@ -204,36 +211,40 @@ def cleanup_and_save_top_models(project_name, username, sweep_id, top_x, sort_me
 
     # Process each run and decide whether to save or delete its artifact
     for run in sorted_runs:
-        try:
-            # Find the list of artifacts associated with the current run
-            artifacts = list(run.logged_artifacts())
 
-            # Find the artifact that matches the specified artifact_name
-            artifact = next((a for a in artifacts if artifact_name in a.name), None)
+        if run.id in top_run_ids or delete_other:
+            print(f"Processing run {run.name}...")
+            try:
+                # Find the list of artifacts associated with the current run
+                artifacts = list(run.logged_artifacts())
 
-            if artifact is None:
-                raise ValueError(f"No artifact named {artifact_name} found for run {run.name}")
+                # Find the artifact that matches the specified artifact_name
+                artifact = next((a for a in artifacts if artifact_name in a.name), None)
 
-            if run.id in top_run_ids:
-                # Download and save the model locally if it's in the top X
-                artifact_dir = artifact.download()
-                local_model_path = os.path.join(local_save_path, f"{run.name}.keras")
-                os.rename(os.path.join(artifact_dir, "best_model.keras"), local_model_path)
-                print(f"Saved {local_model_path} locally.")
+                if artifact is None:
+                    raise ValueError(f"No artifact named {artifact_name} found for run {run.name}")
 
-                # Save the overall best model as `overall_best_model.keras`
-                if run == best_overall_run:
-                    overall_best_path = os.path.join(local_save_path, "overall_best_model.keras")
-                    os.rename(local_model_path, overall_best_path)
-                    print(f"Saved the best overall model as {overall_best_path}.")
-            else:
-                # Delete the artifact if it's not in the top X
-                if delete_other:
-                    artifact.delete()
-                    print(f"Deleted artifact from run {run.name}.")
+                if run.id in top_run_ids:
+                    # Download and save the model locally if it's in the top X
+                    artifact_dir = artifact.download()
+                    local_model_path = os.path.join(local_save_path, f"{run.name}.keras")
+                    os.rename(os.path.join(artifact_dir, "best_model.keras"), local_model_path)
+                    print(f"Saved {local_model_path} locally.")
+
+                    # Save the overall best model as `overall_best_model.keras`
+                    if run == best_overall_run:
+                        overall_best_path = os.path.join(local_save_path, "overall_best_model.keras")
+                        os.rename(local_model_path, overall_best_path)
+                        print(f"Saved the best overall model as {overall_best_path}.")
                 else:
-                    print(f"Skipping deletion of artifact from run {run.name}.")
-        except Exception as e:
-            print(f"Could not process artifact for run {run.name}: {e}")
+                    # Delete the artifact if it's not in the top X
+                    if delete_other:
+                        artifact.delete()
+                        print(f"Deleted artifact from run {run.name}.")
+                    
+            except Exception as e:
+                print(f"Could not process artifact for run {run.name}: {e}")
+        else:
+            print(f"Skipping deletion of artifact from run {run.name}.")
 
     print("Completed processing the models.")
