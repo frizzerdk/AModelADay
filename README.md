@@ -9,3 +9,4 @@ Train Any ML Model every day
 ** make sure they are up to date
 * get cuda toolkit 
 * install kaggle
+* run xhost +local:docker

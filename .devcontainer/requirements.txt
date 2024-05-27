@@ -16,4 +16,9 @@ kaggle
 tensorboard
 hydra-core
 numba
-
+mujoco
+gymnasium
+stable-baselines3[extra]
+mediapy
+pandas
+ipython

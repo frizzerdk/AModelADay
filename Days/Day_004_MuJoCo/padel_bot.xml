@@ -1,0 +1,98 @@
+<!-- Cartpole Model
+
+State-Space (name/joint/parameter):
+
+- world     cart            positions (m)
+- world     cart            orrientation (quaternion)
+- cart      wheel steer1    angle (rad)
+- cart      wheel steer2    angle (rad)
+- cart      wheel steer3    angle (rad)
+- cart      wheel steer4    angle (rad)
+- cart      wheel steer1    velocity (rad/s)
+- cart      wheel steer2    velocity (rad/s)
+- cart      wheel steer3    velocity (rad/s)
+- cart      wheel steer4    velocity (rad/s)
+- cart      wheel drive1    velocity (rad/s)
+- cart      wheel drive2    velocity (rad/s)
+- cart      wheel drive3    velocity (rad/s)
+- cart      wheel drive4    velocity (rad/s)
+
+
+Actuators (name/actuator/parameter):
+
+- cart      motor1       force x (N)
+- cart      motor2       force x (N)
+- cart      motor3       force x (N)
+- cart      motor4       force x (N)
+- cart      motor5       force x (N)
+- cart      motor6       force x (N)
+- cart      motor7       force x (N)
+- cart      motor8       force x (N)
+- cart      linear1      force x (N)
+-->
+<mujoco model='paddlecart'>
+  <asset>
+    <texture type="skybox" builtin="gradient" rgb1=".3 .5 .7" rgb2="0 0 0" width="32" height="512"/>
+    <texture name="grid" type="2d" builtin="checker" width="512" height="512" rgb1=".4 .5 .6" rgb2=".7 .8 .9"/>
+    <material name="grid" texture="grid" texrepeat="2 2" texuniform="true" reflectance=".2"/>
+  </asset>
+
+  <option gravity="0 0 -9"/>
+
+  <worldbody>
+   <light name="light1" pos="0 0 10" dir="0 0 -1" diffuse=".8 .8 .8" specular=".2 .2 .2" ambient=".6 .5 .5"/>
+    <camera name='fixed' pos='0 -2.5 0' quat='0.707 0.707 0 0'/>
+    <geom name="floor" type="plane" size="3 3 .01" pos="-0.025 -0.295  0" material="grid"/>
+
+    <body name="body" pos="0 0 1">
+      <freejoint name="body_joint"/>
+      <geom name="body_geom" type="box" size=".5 .5 .2" rgba="0.7 0.7 0.7 1"/>
+      <body name= "steer_FL" pos="0.5 0.5 -0.25">
+        <joint name="steer_FL_joint" pos="0 0 0" axis="0 0 1"/>
+        <geom name="steer_FL_geom" type="cylinder" size=".1 .01" rgba="0.7 0.7 0 1"/>
+        <body name="drive_FL" pos="0 0 -0.1">
+          <joint name="drive_FL_joint" pos="0 0 0" axis="0 1 0" />
+          <geom name="dribe_FL_geom" type="cylinder" size=".05 .05" rgba="0.7 0.7 0 1" xyaxes="1 0 0 0 0 1"/>
+        </body>
+      </body>
+      <body name= "steer_FR" pos="0.5 -0.5 -0.25">
+        <joint name="steer_FR_joint" pos="0 0 0" axis="0 0 1"/>
+        <geom name="steer_FR_geom" type="cylinder" size=".1 .01" rgba="0.7 0.7 0 1"/>
+        <body name="drive_FR" pos="0 0 -0.1">
+          <joint name="drive_FR_joint" pos="0 0 0" axis="0 1 0" />
+          <geom name="dribe_FR_geom" type="cylinder" size=".05 .05" rgba="0.7 0.7 0 1" xyaxes="1 0 0 0 0 1"/>
+        </body>
+      </body>
+      <body name= "steer_BL" pos="-0.5 0.5 -0.25">
+        <joint name="steer_BL_joint" pos="0 0 0" axis="0 0 1"/>
+        <geom name="steer_BL_geom" type="cylinder" size=".1 .01" rgba="0.7 0.7 0 1"/>
+        <body name="drive_BL" pos="0 0 -0.1">
+          <joint name="drive_BL_joint" pos="0 0 0" axis="0 1 0"/>
+          <geom name="dribe_BL_geom" type="cylinder" size=".05 .05" rgba="0.7 0.7 0 1" xyaxes="1 0 0 0 0 1"/>
+        </body>
+      </body>
+      <body name= "steer_BR" pos="-0.5 -0.5 -0.25">
+        <joint name="steer_BR_joint" pos="0 0 0" axis="0 0 1"/>
+        <geom name="steer_BR_geom" type="cylinder" size=".1 .01" rgba="0.7 0.7 0 1"/>
+        <body name="drive_BR" pos="0 0 -0.1">
+          <joint name="drive_BR_joint" pos="0 0 0" axis="0 1 0" />
+          <geom name="drive_BR_geom" type="cylinder" size=".05 .05" rgba="0.7 0.7 0 1" xyaxes="1 0 0 0 0 1"/>
+        </body>
+      </body>
+    </body>
+
+
+  </worldbody>
+      <actuator>
+      <motor name="motor_FL_drive" joint="drive_FL_joint"/>
+      <motor name="motor_FR_drive" joint="drive_FR_joint"/>
+      <motor name="motor_BL_drive" joint="drive_BL_joint"/>
+      <motor name="motor_BR_drive" joint="drive_BR_joint"/>
+      <motor name="motor_FL_steer" joint="steer_FL_joint"/>
+      <motor name="motor_FR_steer" joint="steer_FR_joint"/>
+      <motor name="motor_BL_steer" joint="steer_BL_joint"/>
+      <motor name="motor_BR_steer" joint="steer_BR_joint"/>
+
+
+    </actuator>
+</mujoco>
