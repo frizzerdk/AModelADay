@@ -99,6 +99,7 @@ def main():
       time_until_next_step = model.opt.timestep - (time.time() - step_start)
       if time_until_next_step > 0:
         time.sleep(time_until_next_step)
+
 def print_model_info(model):
     # Load the model
 

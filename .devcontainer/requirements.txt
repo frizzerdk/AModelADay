@@ -22,3 +22,5 @@ stable-baselines3[extra]
 mediapy
 pandas
 ipython
+ipywidgets
+websockets
