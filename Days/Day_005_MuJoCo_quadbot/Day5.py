@@ -45,171 +45,109 @@ ASSETS=dict()
 ############################################
 
 def prephysic_step(model, data,controller,run_controller=True):
-  # sensor_data = controller.get_sensor_data()
-  # reference = np.zeros(3,1)
+  sensor_data = get_all_sensor_data(data)
+  mapped_sensor_data = map_sensor_data(sensor_data)
   if run_controller:
-    controller.step_controler()
-  # control_output = controller.step_controler()
-  # apply control
-  #data.ctrl = control_output
+    control_output= controller.step_controler(measurement=mapped_sensor_data)
+    mapped_control_output =map_control_output(control_output)
+    apply_control(model,data,mapped_control_output)
 
 ############################################
 # Controller
 ############################################
+# PID Controllers
+
 class PIDController:
-  def __init__(self,n_controls,n_sensors,timestep=0.01,kP = 1,kI = 0.000000,kD = 0.01,outputScale=0.1) -> None:
-    self.n_controls = n_controls
-    self.n_sensors= n_sensors
-    self.kP = kP
-    self.kI = kI
-    self.kD = kD
-    self.P = 0
-    self.I = 0
-    self.D = 0
-    self.prev_error = np.zeros(n_controls)
-    self.integral = np.zeros(n_controls) 
-    self.timestep = timestep
-    self.simulation_frequency= 1/timestep
-    self.outputScale = outputScale
-    self.lastOutput = 0
-    
-  def step_controler(self, measurement,reference = None):
-    '''
-    PID controller
-    '''
-    if reference is None:
-      reference = np.zeros(self.n_controls)
-    error = reference - measurement
-    self.integral += error*self.timestep
-    derivative = (error - self.prev_error) * self.simulation_frequency
-    self.prev_error = error
-    self.P = self.kP*error
-    self.I = self.kI*self.integral
-    self.D = self.kD*derivative
-    self.lastOutput=(self.P + self.I + self.D) * self.outputScale
-    return self.lastOutput
-  
-  def to_json(self):
-    json_data = {
-        "kP": self.kP,
-        "kI": self.kI,
-        "kD": self.kD,
-        "outputScale": self.outputScale,
-        "prev_error": self.prev_error.tolist() if isinstance(self.prev_error, np.ndarray) else self.prev_error,
-        "integral": self.integral.tolist() if isinstance(self.integral, np.ndarray) else self.integral,
-        "P": self.P.tolist() if isinstance(self.P, np.ndarray) else self.P,
-        "I": self.I.tolist() if isinstance(self.I, np.ndarray) else self.I,
-        "D": self.D.tolist() if isinstance(self.D, np.ndarray) else self.D,
-        "lastOutput": self.lastOutput.tolist() if isinstance(self.lastOutput, np.ndarray) else self.lastOutput
-    }
-    return json_data
-class PIDControllerVectorAngle:
-  def __init__(self,n_controls,n_sensors,timestep=0.01,kP = 1,kI = 0.00000,kD = 0.01,outputScale=50) -> None:
-    self.n_controls = n_controls
-    self.n_sensors= n_sensors
-    self.kP = kP
-    self.kI = kI
-    self.kD = kD
-    self.P = 0
-    self.I = 0
-    self.D = 0
-    self.prev_error = np.zeros(n_controls)
-    self.integral = np.zeros(n_controls) 
-    self.timestep = timestep
-    self.simulation_frequency= 1/timestep
-    self.outputScale = outputScale
-    self.lastOutput = 0
+    def __init__(self, n_controls=1, timestep=0.01, kP=1, kI=1, kD=0.01, outputScale=0.1):
+        self.n_controls = n_controls
+        self.kP = kP
+        self.kI = kI
+        self.kD = kD
+        self.P = 0
+        self.I = 0
+        self.D = 0
+        self.prev_error = np.zeros(n_controls)
+        self.integral = np.zeros(n_controls)
+        self.timestep = timestep
+        self.simulation_frequency = 1 / timestep
+        self.outputScale = outputScale
+        self.lastOutput = 0
 
-  def angle_to_vector(self,angle):
-      rad = math.radians(angle)
-      return (math.cos(rad), math.sin(rad))
+    def step_controller(self, measurement, reference=None):
+        if reference is None:
+            reference = np.zeros(self.n_controls)
+        error = reference - measurement
+        self.integral += error * self.timestep
+        derivative = (error - self.prev_error) * self.simulation_frequency
+        self.prev_error = error
+        self.P = self.kP * error
+        self.I = self.kI * self.integral
+        self.D = self.kD * derivative
+        self.lastOutput = (self.P + self.I + self.D) * self.outputScale
+        return self.lastOutput
 
-  def vectors_to_angle(self,v1, v2,in_degrees =True):
-    """
-    Calculate the signed angle between two 2D unit vectors.
+    def to_json(self):
+        json_data = {
+            "kP": self.kP,
+            "kI": self.kI,
+            "kD": self.kD,
+            "outputScale": self.outputScale,
+            "prev_error": self.prev_error.tolist() if isinstance(self.prev_error, np.ndarray) else self.prev_error,
+            "integral": self.integral.tolist() if isinstance(self.integral, np.ndarray) else self.integral,
+            "P": self.P.tolist() if isinstance(self.P, np.ndarray) else self.P,
+            "I": self.I.tolist() if isinstance(self.I, np.ndarray) else self.I,
+            "D": self.D.tolist() if isinstance(self.D, np.ndarray) else self.D,
+            "lastOutput": self.lastOutput.tolist() if isinstance(self.lastOutput, np.ndarray) else self.lastOutput
+        }
+        return json_data
 
-    Parameters:
-    v1 (tuple): First 2D unit vector (x1, y1).
-    v2 (tuple): Second 2D unit vector (x2, y2).
 
-    Returns:
-    float: Signed angle in radians between the two vectors.
-           Positive if counterclockwise, negative if clockwise.
-    """
-    # Calculate the dot product
-    dot_product = v1[0] * v2[0] + v1[1] * v2[1]
-    
-    # Ensure the dot product is within the valid range for acos
-    dot_product = max(min(dot_product, 1.0), -1.0)
-    
-    # Calculate the angle in radians
-    angle = math.acos(dot_product)
-    
-    # Calculate the cross product (as a scalar in 2D)
-    cross_product = v1[0] * v2[1] - v1[1] * v2[0]
-    
-    # Adjust the sign of the angle based on the cross product
-    if cross_product < 0:
-        angle = -angle
-    
-    return math.degrees(angle) if in_degrees else angle
+class PIDControllerVectorAngle(PIDController):
+    def __init__(self, n_controls=1, timestep=0.01, kP=2, kI=0.5, kD=0.1, outputScale=1):
+        super().__init__(n_controls, timestep, kP, kI, kD, outputScale)
+   
+    def angle_to_vector(self, angle):
+        #rad = math.radians(angle)
+        rad = angle
+        return math.cos(rad), math.sin(rad)
 
-  def is_opposite_vector(self, vec1, vec2):
-      dot_product = vec1[0] * vec2[0] + vec1[1] * vec2[1]
-      return dot_product < -0.99999  # Close to -1, considering numerical precision
+    def vectors_to_angle(self, v1, v2, in_degrees=True):
+        dot_product = v1[0] * v2[0] + v1[1] * v2[1]
+        dot_product = max(min(dot_product, 1.0), -1.0)
+        angle = math.acos(dot_product)
+        cross_product = v1[0] * v2[1] - v1[1] * v2[0]
+        if cross_product < 0:
+            angle = -angle
+        return math.degrees(angle) if in_degrees else angle
 
-  def vector_error(self, desired_angle, current_angle):
-      desired_vector = self.angle_to_vector(desired_angle)
-      current_vector = self.angle_to_vector(current_angle)
-      
-      if self.is_opposite_vector(desired_vector, current_vector):
-          return 180.0  # Special case: directly return 180 degrees for opposite vectors
-      
-      # Calculate the angle between the two vectors
+    def is_opposite_vector(self, vec1, vec2):
+        dot_product = vec1[0] * vec2[0] + vec1[1] * vec2[1]
+        return dot_product < -0.999999
 
-      error_angle = self.vectors_to_angle(desired_vector,current_vector)
-      
-      # Normalize the error to the range [-180, 180]
-      if error_angle > 180:
-          error_angle -= 360
-      elif error_angle < -180:
-          error_angle += 360
-      
-      return -error_angle
+    def vector_error(self, desired_angle, current_angle):
+        desired_vector = self.angle_to_vector(desired_angle)
+        current_vector = self.angle_to_vector(current_angle)
+        if self.is_opposite_vector(desired_vector, current_vector):
+            return 180.0
+        error_angle = self.vectors_to_angle(desired_vector, current_vector)
+        if error_angle > 180:
+            error_angle -= 360
+        elif error_angle < -180:
+            error_angle += 360
+        return -error_angle
 
-    
-  def step_controler(self, measurement_angle,reference_angle = None):
-    '''
-    PID controller
-    '''
-    if reference_angle is None:
-      reference = 0
-    
-    error = self.vector_error(reference_angle, measurement_angle)/360
-    self.integral += error*self.timestep
-    derivative = (error - self.prev_error) * self.simulation_frequency
-    self.prev_error = error
-    self.P = self.kP*error
-    self.I = self.kI*self.integral
-    self.D = self.kD*derivative
-    self.lastOutput=(self.P + self.I + self.D) * self.outputScale
-    return self.lastOutput
-    
-  
-  def to_json(self):
-    json_data = {
-        "kP": self.kP,
-        "kI": self.kI,
-        "kD": self.kD,
-        "outputScale": self.outputScale,
-        "prev_error": self.prev_error.tolist() if isinstance(self.prev_error, np.ndarray) else self.prev_error,
-        "integral": self.integral.tolist() if isinstance(self.integral, np.ndarray) else self.integral,
-        "P": self.P.tolist() if isinstance(self.P, np.ndarray) else self.P,
-        "I": self.I.tolist() if isinstance(self.I, np.ndarray) else self.I,
-        "D": self.D.tolist() if isinstance(self.D, np.ndarray) else self.D,
-        "lastOutput": self.lastOutput.tolist() if isinstance(self.lastOutput, np.ndarray) else self.lastOutput
-    }
-    return json_data
+    def step_controller(self, measurement_angle, reference_angle=None):
+        if reference_angle is None:
+            reference_angle = 0
+        error = self.vector_error(reference_angle, measurement_angle) / 360
+        self.integral += error * self.timestep
+        derivative = (error - self.prev_error) * self.simulation_frequency
+        self.prev_error = error
+        self.P = self.kP * error
+        self.I = self.kI * self.integral
+        self.D = self.kD * derivative
+        self.lastOutput = (self.P + self.I + self.D) * self.outputScale
+        return self.lastOutput
 
   
 
@@ -222,30 +160,30 @@ class QuadController:
         - drive vel: FL, FR, BL, BR
         - steer pos: FL, FR, BL, BR
       Reference:
-        - Desired Instantaneous Circle of Rotation
-        - Desired Velocity
+        - Desired Instantaneous Circle of Rotation ( mapped for x)
+        - Desired Velocity average velocity of the wheels
 
   '''
-  def __init__(self,model,data) -> None:
-    self.model = model
-    self.data = data
-    self.sensors = {'drivevel_FL':0,'drivevel_FR':0,'drivevel_BL':0,'drivevel_BR':0
-                    ,'steerpos_FL':0,'steerpos_FR':0,'steerpos_BL':0,'steerpos_BR':0}
-    self.map = {'drive_FL':'drivevel_FL','drive_FR':'drivevel_FR',
-                'drive_BL':'drivevel_BL','drive_BR':'drivevel_BR',
-                'steer_FL':'steerpos_FL','steer_FR':'steerpos_FR',
-                'steer_BL':'steerpos_BL','steer_BR':'steerpos_BR'}
+  def __init__(self,width = 1,length = 1) -> None:
+    self.measurement = {'drive_FL':0,'drive_FL':0,'drive_BL':0,'drive_BR':0,
+                        'steer_FL':0,'steer_FR':0,'steer_BL':0,'steer_BR':0}
+        
+    self.LocalControllers = {'drive_FL':PIDController(),
+                             'drive_FR':PIDController(),
+                             'drive_BL':PIDController(),
+                             'drive_BR':PIDController(),
+                             'steer_FL':PIDControllerVectorAngle(),
+                             'steer_FR':PIDControllerVectorAngle(),
+                             'steer_BL':PIDControllerVectorAngle(),
+                             'steer_BR':PIDControllerVectorAngle()}
     
-    self.LocalControllers = {'drive_FL':PIDController(1,1),'drive_FR':PIDController(1,1),
-                             'drive_BL':PIDController(1,1),'drive_BR':PIDController(1,1),
-                             'steer_FL':PIDControllerVectorAngle(1,1),'steer_FR':PIDControllerVectorAngle(1,1),
-                             'steer_BL':PIDControllerVectorAngle(1,1),'steer_BR':PIDControllerVectorAngle(1,1)}
     self.targets = {'drive_FL':0,'drive_FR':0,'drive_BL':0,'drive_BR':0,
                     'steer_FL':0,'steer_FR':0,'steer_BL':0,'steer_BR':0}
    
-    self.control_reference = {'velocity':1,'ICR_x':0.1,'ICR_y':1}
-    self.width =1 # meter
-    self.length = 1 # meter
+    self.control_reference = {'velocity':0,'ICR_x':0.1,'ICR_y':1}
+    
+    self.width = width
+    self.length = length
     self.wheel_names = ['FL','FR','BL','BR']
     self.wheel_positions = [[-self.width/2,self.length/2],
                       [self.width/2,self.length/2],
@@ -256,7 +194,7 @@ class QuadController:
 
     
   def steering_angle(self,ICR_x,ICR_y,point_x,point_y):
-    # Calculate the steering angle
+    # Calculate the steering angle from the ICR
     angle = np.arctan2(point_y-ICR_y,point_x-ICR_x)
     return angle if ICR_x>0 else angle-np.pi
 
@@ -273,31 +211,16 @@ class QuadController:
       #print("sum",np.sum(speed))
       return speed*target_speed
   
-  def get_sensor_data(self):
-    
-    # Get vel encoder data from Drives
-    self.sensors['drivevel_FL'] = get_sensor_data_by_name(self.model, self.data, 'drivevel_FL')
-    self.sensors['drivevel_FR'] = get_sensor_data_by_name(self.model, self.data, 'drivevel_FR')
-    self.sensors['drivevel_BL'] = get_sensor_data_by_name(self.model, self.data, 'drivevel_BL')
-    self.sensors['drivevel_BR'] = get_sensor_data_by_name(self.model, self.data, 'drivevel_BR')
 
-    # Get rotary encoder data from Steers
-    self.sensors['steerpos_FL'] = get_sensor_data_by_name(self.model, self.data, 'steerpos_FL')
-    self.sensors['steerpos_FR'] = get_sensor_data_by_name(self.model, self.data, 'steerpos_FR')
-    self.sensors['steerpos_BL'] = get_sensor_data_by_name(self.model, self.data, 'steerpos_BL')
-    self.sensors['steerpos_BR'] = get_sensor_data_by_name(self.model, self.data, 'steerpos_BR')
-    return self.sensors
-  def steering_map(self,new,old=None):
+  def steering_map(self,new):
     # clip input to range [-1,1]
     eps=0.00001
-    new = new + old if old else new
     x=np.clip(new+eps,-1,1)
     new_map = np.sign(x) * (1 / abs(x) - 1) if x != 0 else np.inf
     return new_map
   
-  def set_mapped_reference(self,velocity=None,ICR_x=None,ICR_y=None,Delta=False):
+  def set_reference(self,velocity=None,ICR_x=None,ICR_y=None,Delta=False):
     if Delta:
-      
       self.control_reference['velocity'] += velocity if velocity else 0
       self.control_reference['ICR_x'] += ICR_x if ICR_x else 0
       self.control_reference['ICR_y'] += ICR_y if ICR_y else 0
@@ -307,12 +230,12 @@ class QuadController:
       self.control_reference['ICR_y'] = ICR_y if ICR_y else self.control_reference['ICR_y']
     return self.control_reference
 
-  def step_controler(self,reference = None):
-    self.get_sensor_data()
+  def step_controler(self,measurement=None,reference = None):
+    self.measurement = measurement if measurement else self.measurement
     # get reference speed and angles
     self.control_reference = reference if reference else self.control_reference
-    # set targets for all speeds and angles
-    # Calculate the targets for each wheel
+
+    # Calculate the targets for  all wheels at once to get adjusted speed and angles
     self.angles = self.steering_angle(self.steering_map(self.control_reference['ICR_x']),self.steering_map(self.control_reference['ICR_y']),
                                       np.array([x for x, y in self.wheel_pos_dict.values()]),
                                       np.array([y for x, y in self.wheel_pos_dict.values()]))
@@ -320,14 +243,16 @@ class QuadController:
                                       np.array([x for x, y in self.wheel_pos_dict.values()]),
                                       np.array([y for x, y in self.wheel_pos_dict.values()]),
                                       self.control_reference['velocity'])
-    # run PID for each
+    outputs = {}
+    # run PID for each and make output dict
     for index,  wheel in enumerate(self.wheel_names):
       self.targets[f"drive_{wheel}"] = self.speeds[index]
       self.targets[f"steer_{wheel}"] = self.angles[index]
-      set_actuator_output(self.model,self.data, f"motor_{wheel}_drive",
-                          self.LocalControllers[f"drive_{wheel}"].step_controler(self.sensors[self.map[f"drive_{wheel}"]],self.targets[f"drive_{wheel}"]))
-      set_actuator_output(self.model,self.data, f"motor_{wheel}_steer",
-                          self.LocalControllers[f"steer_{wheel}"].step_controler(self.sensors[self.map[f"steer_{wheel}"]],self.targets[f"steer_{wheel}"]))
+      outputs[f"drive_{wheel}"] = self.LocalControllers[f"drive_{wheel}"].step_controller(self.measurement[f"drive_{wheel}"],self.targets[f"drive_{wheel}"])
+      outputs[f"steer_{wheel}"] = self.LocalControllers[f"steer_{wheel}"].step_controller(self.measurement[f"steer_{wheel}"],self.targets[f"steer_{wheel}"])
+    
+    return outputs
+  
   def to_json(self):
      # Add all data to a json struct
     json_data = { 
@@ -347,7 +272,7 @@ class QuadController:
     }
     return json_data
 ############################################
-# Functions
+# Util Functions
 ############################################
 
 
@@ -381,6 +306,42 @@ class WebSocketClient:
         # Close the connection
         self.loop.run_until_complete(self.close())
 
+def map_sensor_data(sensor_data):
+  map = {'drivevel_FL':'drive_FL','drivevel_FR':'drive_FR',
+          'drivevel_BL':'drive_BL','drivevel_BR':'drive_BR',
+          'steerpos_FL':'steer_FL','steerpos_FR':'steer_FR',
+          'steerpos_BL':'steer_BL','steerpos_BR':'steer_BR'}
+  return {map[key]:sensor_data[key] for key in sensor_data.keys()}
+
+
+def get_sensor_data_by_name(data, sensor_name):
+    sensor_id = mujoco.mj_name2id(data.model, mujoco.mjtObj.mjOBJ_SENSOR, sensor_name)
+    sensor_start = data.model.sensor_adr[sensor_id]
+    sensor_dim = data.model.sensor_dim[sensor_id]
+    sensor_data = data.sensordata[sensor_start:sensor_start + sensor_dim]
+    return sensor_data
+
+
+def get_all_sensor_data(data):
+    sensor_names = [
+        'drivevel_FL', 'drivevel_FR', 'drivevel_BL', 'drivevel_BR',
+        'steerpos_FL', 'steerpos_FR', 'steerpos_BL', 'steerpos_BR'
+    ]
+    sensor_data = {name: get_sensor_data_by_name(data, name) for name in sensor_names}
+    return sensor_data
+
+def map_control_output(control_output):
+  map = {'drive_FL':'motor_FL_drive','drive_FR':'motor_FR_drive',
+          'drive_BL':'motor_BL_drive','drive_BR':'motor_BR_drive',
+          'steer_FL':'motor_FL_steer','steer_FR':'motor_FR_steer',
+          'steer_BL':'motor_BL_steer','steer_BR':'motor_BR_steer'}
+  return {map[key]:control_output[key] for key in control_output.keys()}
+
+def apply_control(model, data, control_output):
+    # Set the control output for each actuator
+    for actuator_name, output in control_output.items():
+        set_actuator_output(model, data, actuator_name, output)
+
 def set_actuator_output(model, data, actuator_name, output):
     """
     Set the output of an actuator based on its name.
@@ -404,20 +365,7 @@ def load_model(XML, ASSETS):
   data = mujoco.MjData(model)
   return model, data
 
-def get_sensor_data_by_name(model, data, sensor_name):
-    # Get the sensor ID from the sensor name
-    sensor_id = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_SENSOR, sensor_name)
-    
-    # Get the starting index of the sensor's data in sensordata
-    sensor_start = model.sensor_adr[sensor_id]
-    
-    # Get the number of data entries for this sensor
-    sensor_dim = model.sensor_dim[sensor_id]
-    
-    # Get the sensor data
-    sensor_data = data.sensordata[sensor_start:sensor_start + sensor_dim]
-    
-    return sensor_data
+
 
 def get_joint_position_by_name(model, data, joint_name):
     # Get the joint ID from the joint name
@@ -573,7 +521,7 @@ def main():
   webclient.start_connection()
   ###### Initialization ######
   model, data = load_model(XML, ASSETS)
-  controller = QuadController(model,data)
+  controller = QuadController(1,1)
   set_initial_pose(data)
   print_model_info(model)
   ############################
@@ -582,17 +530,17 @@ def main():
 
       key = chr(keycode)
       if key == chr( 265): # up 
-        controller.set_mapped_reference(velocity=1,Delta=True)
+        controller.set_reference(velocity=5,Delta=True)
       elif key == chr( 264): # down
-        controller.set_mapped_reference(velocity=-1,Delta=True)
+        controller.set_reference(velocity=-5,Delta=True)
       elif key == chr( 263): # left
-        controller.set_mapped_reference(ICR_x=0.1,Delta=True)
+        controller.set_reference(ICR_x=0.1,Delta=True)
       elif key == chr( 262): # right
-        controller.set_mapped_reference(ICR_x=-0.1,Delta=True)
+        controller.set_reference(ICR_x=-0.1,Delta=True)
       elif key == '.':
-        controller.set_mapped_reference(ICR_y=0.1,Delta=True)
+        controller.set_reference(ICR_y=0.1,Delta=True)
       elif key == ',':
-        controller.set_mapped_reference(ICR_y=-0.1,Delta=True)
+        controller.set_reference(ICR_y=-0.1,Delta=True)
       print(controller.control_reference)
         
 

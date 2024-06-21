@@ -2,13 +2,14 @@
 The goal of this Day is to make controlable quadbot using mujoco
 Goals:
 - [X] Make an xml example with a controlable quadbot
-- [ ] Expose controlable parameters to the user
--- [ ] Drive power
--- [ ] Steering power
-- [ ] Expose the measurement of sensors
+- [x] Expose controlable parameters to the user
+-- [x] Drive power
+-- [x] Steering power
+- [X] Expose the measurement of sensors
 -- [ ] Accelerometer
 -- [ ] Gyroscope
--- [ ] Rotary Encoders
---- [ ] Drive
---- [ ] Steering
-- [ ] Make a simple controller for the platform
+-- [X] Postion
+-- [X] Rotary Encoders
+--- [X] Drive (Velocity)
+--- [X] Steering
+- [X] Make a simple controller for the platform
