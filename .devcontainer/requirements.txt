@@ -23,4 +23,5 @@ mediapy
 pandas
 ipython
 ipywidgets
+moviepy
 websockets

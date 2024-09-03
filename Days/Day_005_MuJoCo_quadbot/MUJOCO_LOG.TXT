@@ -73,3 +73,6 @@ WARNING: Nan, Inf or huge value in QACC at DOF 6. The simulation is unstable. Ti
 Sun Jun  9 17:12:49 2024
 ERROR: could not initialize GLFW
 
+Wed Jun 26 06:43:38 2024
+ERROR: could not initialize GLFW
+

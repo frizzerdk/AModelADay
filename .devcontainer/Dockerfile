@@ -1,5 +1,5 @@
 # Use an official NVIDIA runtime base image with CUDA
-FROM nvidia/cuda:12.4.1-devel-ubuntu22.04
+FROM nvidia/cuda:12.5.0-devel-ubuntu22.04
 
 # Set environment variable to avoid interactive prompts during package installation
 ARG DEBIAN_FRONTEND=noninteractive
@@ -16,6 +16,20 @@ RUN apt-get update && apt-get install -y \
     libxtst6 \
     libxext6 \
     libgl1-mesa-glx \
+    libsdl2-dev \
+    libsdl2-image-dev \
+    libsdl2-mixer-dev \
+    libsdl2-ttf-dev \
+    libportmidi-dev \
+    libfreetype6-dev \
+    libjpeg-dev \
+    libpng-dev \
+    libtiff-dev \
+    libx11-dev \
+    libxcursor-dev \
+    libxinerama-dev \
+    libxrandr-dev \
+    libxi-dev \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 

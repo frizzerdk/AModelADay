@@ -1,0 +1,19 @@
+project_name: Day6
+username: frizzerdk
+
+is_sweep: False
+sweep_count: -1
+
+checkpoint_path: ./checkpoints
+best_model_path: ${checkpoint_path}/best_model.keras
+
+
+epochs: 100
+param_scale: 2.0
+learning_rate: 0.001
+batch_size: 64
+
+# Configuration for data augmentation layers with both positional and keyword arguments
+environment:
+
+agent:
