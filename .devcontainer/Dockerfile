@@ -47,7 +47,7 @@ WORKDIR /workspaces
 COPY requirements.txt .
 
 # Install Python dependencies from requirements.txt
-RUN pip install -r requirements.txt
+RUN pip install --upgrade -r requirements.txt
 
 # Set environment variables
 ENV PYTHONPATH="/workspaces/AModelADay:${PYTHONPATH}"

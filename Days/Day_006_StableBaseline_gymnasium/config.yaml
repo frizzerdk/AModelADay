@@ -5,15 +5,21 @@ is_sweep: False
 sweep_count: -1
 
 checkpoint_path: ./checkpoints
-best_model_path: ${checkpoint_path}/best_model.keras
+best_model_path: ${checkpoint_path}/best_model.zip
 
 
 epochs: 100
-param_scale: 2.0
-learning_rate: 0.001
-batch_size: 64
 
-# Configuration for data augmentation layers with both positional and keyword arguments
-environment:
-
-agent:
+env_name: CartPole-v1
+monitor_dir: ./monitor
+video_dir: ./video
+log_dir: ./logs
+eval_freq: 2000
+model: MlpPolicy
+learning_rate: 0.0003
+gamma: 0.99
+gae_lambda: 0.95
+clip_range: 0.2
+total_timesteps: 10000
+seed: 42
+n_eval_episodes: 5

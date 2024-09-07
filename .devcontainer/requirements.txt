@@ -25,3 +25,4 @@ ipython
 ipywidgets
 moviepy
 websockets
+opencv-python
