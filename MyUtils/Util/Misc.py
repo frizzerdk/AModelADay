@@ -125,7 +125,7 @@ def load_and_override_config(config_dir, config_name, manual_overrides={}, init_
 
 
 
-def get_or_create_sweep_id(project_name, sweep_config,force_create=False):
+def get_or_create_sweep_id(project_name, sweep_config, force_create=False):
     """
     Get or create a sweep ID for the given project.
 
@@ -136,6 +136,7 @@ def get_or_create_sweep_id(project_name, sweep_config,force_create=False):
     Args:
     project_name (str): The name of the project.
     sweep_config (dict): The configuration of the sweep.
+    force_create (bool): If True, always create a new sweep regardless of existing files.
 
     Returns:
     str: The sweep ID.
@@ -143,19 +144,39 @@ def get_or_create_sweep_id(project_name, sweep_config,force_create=False):
     sweep_id_folder = 'sweep_ids'
     sweep_id_file = f'{project_name}_sweep_id.txt'
     sweep_id_file = os.path.join(sweep_id_folder, sweep_id_file)
+    
     if force_create:
         sweep_id = wandb.sweep(sweep_config, project=project_name)
+        print(f"Forced creation of new sweep. New sweep ID: {sweep_id}")
+        print(f"Sweep URL: https://wandb.ai/{wandb.api.default_entity}/{project_name}/sweeps/{sweep_id}")
         with open(sweep_id_file, 'w') as file:
             file.write(sweep_id)
         return sweep_id
+
     # Check if the sweep ID file exists
     if os.path.exists(sweep_id_file):
         # If the file exists, read the sweep ID from the file
         with open(sweep_id_file, 'r') as file:
             sweep_id = file.read().strip()
+        print(f"Found existing sweep ID in file: {sweep_id}")
+        
+        # Check if the sweep exists on the server
+        api = wandb.Api()
+        try:
+            sweep = api.sweep(f"{wandb.api.default_entity}/{project_name}/sweeps/{sweep_id}")
+            print(f"Sweep exists on server. Sweep URL: https://wandb.ai/{wandb.api.default_entity}/{project_name}/sweeps/{sweep_id}")
+        except wandb.errors.CommError:
+            print(f"Warning: Sweep ID {sweep_id} found in file, but does not exist on server. Creating new sweep.")
+            sweep_id = wandb.sweep(sweep_config, project=project_name)
+            print(f"New sweep created. Sweep ID: {sweep_id}")
+            print(f"New sweep URL: https://wandb.ai/{wandb.api.default_entity}/{project_name}/sweeps/{sweep_id}")
+            with open(sweep_id_file, 'w') as file:
+                file.write(sweep_id)
     else:
         # If the file does not exist, create a new sweep
         sweep_id = wandb.sweep(sweep_config, project=project_name)
+        print(f"Created new sweep. Sweep ID: {sweep_id}")
+        print(f"Sweep URL: https://wandb.ai/{wandb.api.default_entity}/{project_name}/sweeps/{sweep_id}")
         # Make sure the directory exists
         os.makedirs(sweep_id_folder, exist_ok=True)
         # Write the sweep ID to the file

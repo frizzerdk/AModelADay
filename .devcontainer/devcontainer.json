@@ -29,9 +29,8 @@
         "DISPLAY": "${localEnv:DISPLAY}",
         "QT_X11_NO_MITSHM": "1"
     },
-	"postCreateCommand": [	"pip install -e /workspaces/AModelADay/MyUtils",
-							"chmod -R 777 /workspace"
-]
+"postCreateCommand": "bash /workspaces/AModelADay/.devcontainer/post-create.sh",
+
 
 	// Features to add to the dev container. More info: https://containers.dev/features.
 	// "features": {},
