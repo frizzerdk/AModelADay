@@ -80,11 +80,21 @@ def train():
 
     # Initialize WandB
     wandb.gym.monitor()
-    wandb.define_metric("eval/mean_reward")
-    wandb.define_metric("eval/mean_ep_length")
-    wandb.define_metric("eval/max_ep_reward")
-    wandb.define_metric("eval/min_ep_reward")
-    wandb.define_metric("eval/success_rate")
+    wandb.define_metric("eval/mean_reward", summary="min")
+    wandb.define_metric("eval/mean_reward", summary="max")
+    wandb.define_metric("eval/mean_reward", summary="mean")
+    wandb.define_metric("eval/mean_ep_length", summary="min")
+    wandb.define_metric("eval/mean_ep_length", summary="max")
+    wandb.define_metric("eval/mean_ep_length", summary="mean")
+    wandb.define_metric("eval/max_ep_reward", summary="min")
+    wandb.define_metric("eval/max_ep_reward", summary="max")
+    wandb.define_metric("eval/max_ep_reward", summary="mean")
+    wandb.define_metric("eval/min_ep_reward", summary="min")
+    wandb.define_metric("eval/min_ep_reward", summary="max")
+    wandb.define_metric("eval/min_ep_reward", summary="mean")
+    wandb.define_metric("eval/success_rate", summary="min")
+    wandb.define_metric("eval/success_rate", summary="max")
+    wandb.define_metric("eval/success_rate", summary="mean")
 
     # Load the training environment
     env = gym.make(cfg.env_name, render_mode="rgb_array")
@@ -112,9 +122,14 @@ def train():
 
     callbacks = [eval_callback, wandb_callback]
 
-    # Load the model
+    # Specify the device
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    print(f"Using device: {device}")
+
+    # Load the model with GPU support
     model = sb3.PPO(cfg.model, env, verbose=1, learning_rate=cfg.learning_rate, 
-                    gamma=cfg.gamma, gae_lambda=cfg.gae_lambda, clip_range=cfg.clip_range)
+                    gamma=cfg.gamma, gae_lambda=cfg.gae_lambda, clip_range=cfg.clip_range,
+                    device=device)
 
     # Train the model
     model.learn(

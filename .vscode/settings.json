@@ -1,3 +1,5 @@
 {
-    "ros.distro": "humble"
+    "ros.distro": "humble",
+    "favorites.resources": [],
+    "favorites.sortOrder": "ASC"
 }

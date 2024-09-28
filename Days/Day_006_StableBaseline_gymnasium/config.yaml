@@ -2,7 +2,7 @@ project_name: Day6_sweep
 username: frizzerdk
 
 is_sweep: True
-sweep_count: 20
+sweep_count: 100
 
 checkpoint_path: ./checkpoints
 best_model_path: ${checkpoint_path}/best_model.zip
@@ -12,12 +12,12 @@ env_name: CartPole-v1
 monitor_dir: ./monitor
 video_dir: ./video
 log_dir: ./logs
-eval_freq: 10000
+eval_freq: 6000
 model: MlpPolicy
 learning_rate: 0.0003
 gamma: 0.99
 gae_lambda: 0.95
 clip_range: 0.2
-total_timesteps: 100000
+total_timesteps: 60000
 seed: 42
 n_eval_episodes: 5

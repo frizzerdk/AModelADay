@@ -125,25 +125,29 @@ def load_and_override_config(config_dir, config_name, manual_overrides={}, init_
 
 
 
-def get_or_create_sweep_id(project_name, sweep_config, force_create=False):
+def get_or_create_sweep_id(project_name, sweep_config, force_create=False, allow_create=True):
     """
     Get or create a sweep ID for the given project.
 
     This function checks if there is a file named '{project_name}_sweep_id.txt' that contains the sweep ID.
     If the file exists, it reads the sweep ID from the file.
-    If the file does not exist, it creates a new sweep and writes the sweep ID to the file.
+    If the file does not exist, it creates a new sweep only if allow_create is True.
 
     Args:
     project_name (str): The name of the project.
     sweep_config (dict): The configuration of the sweep.
     force_create (bool): If True, always create a new sweep regardless of existing files.
+    allow_create (bool): If False, don't create a new sweep if one doesn't exist.
 
     Returns:
-    str: The sweep ID.
+    str: The sweep ID, or None if no sweep exists and allow_create is False.
     """
     sweep_id_folder = 'sweep_ids'
     sweep_id_file = f'{project_name}_sweep_id.txt'
     sweep_id_file = os.path.join(sweep_id_folder, sweep_id_file)
+    
+    # Always create the directory, regardless of other conditions
+    os.makedirs(sweep_id_folder, exist_ok=True)
     
     if force_create:
         sweep_id = wandb.sweep(sweep_config, project=project_name)
@@ -173,15 +177,19 @@ def get_or_create_sweep_id(project_name, sweep_config, force_create=False):
             with open(sweep_id_file, 'w') as file:
                 file.write(sweep_id)
     else:
-        # If the file does not exist, create a new sweep
-        sweep_id = wandb.sweep(sweep_config, project=project_name)
-        print(f"Created new sweep. Sweep ID: {sweep_id}")
-        print(f"Sweep URL: https://wandb.ai/{wandb.api.default_entity}/{project_name}/sweeps/{sweep_id}")
-        # Make sure the directory exists
-        os.makedirs(sweep_id_folder, exist_ok=True)
-        # Write the sweep ID to the file
-        with open(sweep_id_file, 'w') as file:
-            file.write(sweep_id)
+        # If the file does not exist, create a new sweep only if allowed
+        if allow_create:
+            sweep_id = wandb.sweep(sweep_config, project=project_name)
+            print(f"Created new sweep. Sweep ID: {sweep_id}")
+            print(f"Sweep URL: https://wandb.ai/{wandb.api.default_entity}/{project_name}/sweeps/{sweep_id}")
+            # Make sure the directory exists
+            os.makedirs(sweep_id_folder, exist_ok=True)
+            # Write the sweep ID to the file
+            with open(sweep_id_file, 'w') as file:
+                file.write(sweep_id)
+        else:
+            print("No existing sweep found and creation of new sweep is not allowed.")
+            return None
     
     return sweep_id
 def cleanup_and_save_top_models(project_name, username, sweep_id, top_x, sort_metric="epoch/val_acc",sort_lambda=None, artifact_name="best-model", delete_other=False, local_save_path="./best_models"):

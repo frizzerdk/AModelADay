@@ -1,0 +1,15 @@
+name: rl_hyperparameter_sweep
+program: train.py
+method: grid
+metric:
+    goal: maximize
+    name: eval/episode_reward
+parameters:
+    learning_rate:
+        values: [1e-4, 3e-4, 1e-3]
+    gamma:
+        values: [0.95, 0.99, 0.995]
+    gae_lambda:
+        values: [0.9, 0.95, 0.98]
+    clip_range:
+        values: [0.1, 0.2, 0.3]

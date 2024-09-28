@@ -26,3 +26,10 @@ ipywidgets
 moviepy
 websockets
 opencv-python
+tk
+openai
+langchain
+python-dotenv
+anthropic
+langchain-community
+langchain-openai

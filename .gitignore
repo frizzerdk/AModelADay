@@ -3,12 +3,14 @@
 **/MyDataset*
 **/gym_recordings/**
 **/video/*
+**/checkpoints/*
 
 # wandb
 **/wandb/
 # filetypes
 *.keras
 *.npy
+*.zip
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
