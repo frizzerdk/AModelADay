@@ -7,6 +7,7 @@ import gymnasium as gym
 from gymnasium.wrappers import RecordVideo
 from stable_baselines3 import PPO
 from stable_baselines3.common.vec_env import DummyVecEnv
+from stable_baselines3.common.monitor import Monitor
 import argparse
 import torch
 import os
@@ -14,6 +15,7 @@ import sys
 from typing import Any
 from MySnakeEnv import SnakeEnv
 from gymnasium.wrappers import RecordVideo
+from wandb.integration.sb3 import WandbCallback
 
 # Get the directory of the current script
 script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -77,6 +79,7 @@ def train():
     print(OmegaConf.to_yaml(cfg))
 
     # Initialize WandB
+    wandb.gym.monitor()  # Enable video logging
     wandb.define_metric("eval/mean_reward", summary="min")
     wandb.define_metric("eval/mean_reward", summary="max")
     wandb.define_metric("eval/mean_reward", summary="mean")
@@ -95,9 +98,12 @@ def train():
 
     # Create the environments
     env = SnakeEnv(max_steps=cfg.env.max_steps, grid_size=cfg.env.grid_size)
+    env = Monitor(env, cfg.monitor_dir)
+
     
     eval_env = SnakeEnv(max_steps=cfg.env.max_steps, grid_size=cfg.env.grid_size, render_mode="rgb_array")
-    eval_env = RecordVideo(eval_env, video_folder=cfg.video_dir, episode_trigger=lambda x: x % cfg.n_eval_episodes == 0)
+    eval_env = Monitor(eval_env, cfg.monitor_dir)  # Wrap with Monitor
+    eval_env = RecordVideo(eval_env, video_folder=cfg.video_dir, episode_trigger=lambda x: x % cfg.train.n_eval_episodes == 0)
     eval_env = DummyVecEnv([lambda: eval_env])
 
     # Set up the callbacks
@@ -107,9 +113,9 @@ def train():
         eval_env=eval_env,
         best_model_save_path=cfg.checkpoint_path,
         log_path=cfg.log_dir,
-        eval_freq=cfg.train.eval_freq,  # Change this line
+        eval_freq=cfg.train.eval_freq,  
         deterministic=True,
-        render=False,
+        render=cfg.train.render_eval,
         n_eval_episodes=cfg.train.n_eval_episodes,
         callback_after_eval=wandb_eval_callback
     )
@@ -143,6 +149,11 @@ def train():
 
     # Save the final model
     model.save(f"{cfg.save.model_dir}/final_model")
+
+    # Log the best model as an artifact
+    artifact = wandb.Artifact('best-model', type='model')
+    artifact.add_file(f"{cfg.checkpoint_path}/best_model.zip")
+    wandb.log_artifact(artifact)
 
     env.close()
     eval_env.close()
