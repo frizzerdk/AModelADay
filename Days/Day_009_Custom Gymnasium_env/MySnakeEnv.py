@@ -23,7 +23,7 @@ class SnakeEnv(gym.Env):
 
         self.reset()
 
-    def reset(self, seed=None):
+    def reset(self, seed=None, options=None):
         super().reset(seed=seed)
         self.snake = [(self.grid_size // 2, self.grid_size // 2)]
         self.food = self._place_food()

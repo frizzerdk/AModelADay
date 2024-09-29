@@ -1,0 +1,39 @@
+project_name: snake_ppo
+username: frizzerdk
+
+env:
+  name: SnakeEnv
+  max_steps: 100
+  grid_size: 5
+
+model:
+  policy: MlpPolicy
+  learning_rate: 0.0003
+  n_steps: 2048
+  batch_size: 64
+  n_epochs: 10
+  gamma: 0.99
+  gae_lambda: 0.95
+  clip_range: 0.2
+  ent_coef: 0.0
+  vf_coef: 0.5
+  max_grad_norm: 0.5
+
+train:
+  total_timesteps: 1000000
+  log_interval: 1
+  eval_freq: 10000  # Add this line
+  n_eval_episodes: 2
+  deterministic_eval: false
+  render_eval: true
+  render_delay: 0.02
+
+save:
+  model_dir: ./models
+  save_freq: 10000
+
+monitor_dir: ./monitor
+video_dir: ./video
+log_dir: ./logs
+checkpoint_path: ./checkpoints
+is_sweep: false
