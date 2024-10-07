@@ -3,6 +3,7 @@
 **/MyDataset*
 **/gym_recordings/**
 **/video/*
+**/quadbot_video/*
 **/checkpoints/*
 
 # wandb

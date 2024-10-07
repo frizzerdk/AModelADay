@@ -20,7 +20,7 @@ model:
   max_grad_norm: 0.5
 
 train:
-  total_timesteps: 20000
+  total_timesteps: 10000000
   log_interval: 1
   eval_freq: 10000
   n_eval_episodes: 2

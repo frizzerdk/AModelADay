@@ -33,3 +33,4 @@ python-dotenv
 anthropic
 langchain-community
 langchain-openai
+pynput
