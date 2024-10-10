@@ -122,6 +122,7 @@ class QuadbotEnv(MujocoEnv, utils.EzPickle):
         obs_low = np.array([
             -1, -1, -1, -1,  # cos of wheel steer positions (4)
             -1, -1, -1, -1,  # sin of wheel steer positions (4)
+            -50, -50, -50, -50,  # wheel steer velocities (4)
             -1500, -1500, -1500, -1500,  # wheel drive velocities (4)
             -20, -20, -20,  # body linear velocity (3)
             -1, -1, -1  # body x-axis orientation (3)
@@ -130,6 +131,7 @@ class QuadbotEnv(MujocoEnv, utils.EzPickle):
         obs_high = np.array([
             1, 1, 1, 1,  # cos of wheel steer positions (4)
             1, 1, 1, 1,  # sin of wheel steer positions (4)
+            50, 50, 50, 50,  # wheel steer velocities (4)
             1500, 1500, 1500, 1500,  # wheel drive velocities (4)
             20, 20, 20,  # body linear velocity (3)
             1, 1, 1  # body x-axis orientation (3)
@@ -148,6 +150,8 @@ class QuadbotEnv(MujocoEnv, utils.EzPickle):
 
         self.metadata["render_fps"] = int(np.round(1.0 / self.dt))
 
+        self.prev_steer_pos = np.zeros(4)  # Add this line to store previous steer positions
+        self.steer_velocities = np.zeros(4)  # Add this line to store steer velocities
 
     def step(self, action):
         self._steps += 1  # Add this line
@@ -163,7 +167,7 @@ class QuadbotEnv(MujocoEnv, utils.EzPickle):
 
         if self.render_mode == "human":
             self.render()
-
+        self.prev_steer_pos = self.raw_latest_observation[0:4]
         return observation, reward, terminated, truncated, info
 
     def reset_model(self):
@@ -205,6 +209,9 @@ class QuadbotEnv(MujocoEnv, utils.EzPickle):
             qpos[2] += 0.01
             self.set_state(qpos, qvel)
 
+        # Reset previous steer positions
+        self.prev_steer_pos = self.data.sensordata[0:4]
+
         return self._get_obs()
     
     def get_state(self):
@@ -227,18 +234,38 @@ class QuadbotEnv(MujocoEnv, utils.EzPickle):
         for i in range(len(self.data.ctrl)):
             self.state_dict[f"ctrl[{i}]"] = self.data.ctrl[i]
 
+        # Add steer velocities
+
+        self.state_dict['steervel_FL'] = self.steer_velocities[0]
+        self.state_dict['steervel_FR'] = self.steer_velocities[1]
+        self.state_dict['steervel_BL'] = self.steer_velocities[2]
+        self.state_dict['steervel_BR'] = self.steer_velocities[3]
+
         return self.state_dict
 
     def _get_obs(self):
         # Observation state explanation:
         #    [0-3] Wheel steer positions (FL, FR, BL, BR)
         #    [4-7] Wheel drive velocities (FL, FR, BL, BR)
-        #    [8-10] Body linear velocity (x, y, z)
-        #    [11-13] Body x-axis orientation
-        # Total: 14 observation values
+        #    [8-11] Wheel steer velocities (FL, FR, BL, BR)
+        #    [12-14] Body linear velocity (x, y, z)
+        #    [15-17] Body x-axis orientation
+        # Total: 18 observation values
         self.raw_latest_observation = np.concatenate([self.data.sensordata.copy()])
-        self.latest_observation = np.concatenate([np.cos(self.raw_latest_observation[0:4]), np.sin(self.raw_latest_observation[0:4]), self.raw_latest_observation[4:14]])
-        # make angles into vectors
+        
+        # Calculate steer velocities
+        current_steer_pos = self.raw_latest_observation[0:4]
+        self.steer_velocities = (current_steer_pos - self.prev_steer_pos) / self.dt
+        
+        
+        self.latest_observation = np.concatenate([
+            np.cos(current_steer_pos), # Wheel steer positions (4)
+            np.sin(current_steer_pos), # Wheel steer positions (4)
+            self.steer_velocities,  # Wheel steer velocities
+            self.raw_latest_observation[4:8],  # Wheel drive velocities
+            self.raw_latest_observation[8:14]  # Body linear velocity and x-axis orientation
+        ])
+        
         self.latest_state = self.data.qpos.copy()
 
         return self.latest_observation
@@ -248,7 +275,7 @@ class QuadbotEnv(MujocoEnv, utils.EzPickle):
         x_velocity = self.data.qvel[0]
         y_velocity_penalty = -np.square(0.1*self.data.qvel[1])
         body_rotation_penalty = -0.01 * np.sum(np.square(0.1*self.data.qvel[3:6]))
-        steer_penalty = -1 * np.sum(np.square(0.001*self.data.qvel[[7, 10, 13, 16]]))
+        steer_penalty = -1 * np.sum(np.square(0.1*self.data.qvel[[7, 10, 13, 16]]))
         drive_penalty = -1 * np.sum(np.square(0.0001*self.data.qvel[[8, 11, 14, 17]]))
 
         # Actuation input penalty
@@ -259,32 +286,21 @@ class QuadbotEnv(MujocoEnv, utils.EzPickle):
             np.cos(self.data.sensordata[0:4]),
             np.sin(self.data.sensordata[0:4])
         ]).T  # Transpose to get 4 vectors of shape (2,)
-        wheel_angles = np.array([np.arccos(wheel_vectors[0,0]), np.arcsin(wheel_vectors[0,1]), np.arccos(wheel_vectors[1,0]), np.arcsin(wheel_vectors[1,1]), np.arccos(wheel_vectors[2,0]), np.arcsin(wheel_vectors[2,1]), np.arccos(wheel_vectors[3,0]), np.arcsin(wheel_vectors[3,1])])
 
-        # Calculate dot products for all combinations
-        wheel_dotproducts = []
-        # for i in range(4):
-        #     for j in range(i+1, 4):
-        #         dot = np.dot(wheel_vectors[i], wheel_vectors[j])
-        #         wheel_dotproducts.append(dot)
-        for i in range(1, 4):
-            dot = np.dot(wheel_vectors[0], wheel_vectors[i])
-            wheel_dotproducts.append(dot)
-            print(f"dot: {dot} wheel_vectors[0]: {wheel_vectors[0]} wheel_vectors[i]: {wheel_vectors[i]}")
+        # Calculate dot products between adjacent wheels
+        dot_products = [
+            np.dot(wheel_vectors[i], wheel_vectors[(i+1)%4])
+            for i in range(4)
+        ]
 
-        wheel_dotproducts = np.array(wheel_dotproducts)
-        print(f"self.data.sensordata[0:4]: {self.data.sensordata[0:4]}")
-        print(f"wheel_angles: {wheel_angles}")
-        print(f"wheel_vectors: {wheel_vectors}")
+        # Penalize misalignment, but allow some deviation
+        target_alignment = np.cos(np.radians(10))  # Allow 10 degrees of misalignment
+        misalignment_penalties = [
+            max(0, target_alignment - abs(dot))
+            for dot in dot_products
+        ]
 
-        print(f"wheel_dotproducts: {wheel_dotproducts}")
-        
-        # Penalize misalignment (dot products not close to 1)
-        dot_penalty =1 - np.abs(wheel_dotproducts)
-        wheel_misalignment_penalty =  np.sum(dot_penalty)
-        scaled_wheel_misalignment_penalty = -0.1 * wheel_misalignment_penalty
-        print(f"wheel_misalignment_penalty: {wheel_misalignment_penalty}")
-        print(f"dot_penalty: {dot_penalty}")
+        wheel_misalignment_penalty = np.sum(misalignment_penalties)
 
         # Update reward dictionary
         self.reward_dict = {
@@ -297,18 +313,21 @@ class QuadbotEnv(MujocoEnv, utils.EzPickle):
             "wheel_misalignment_penalty": wheel_misalignment_penalty
         }
         #clip penalty to be between 0 and -1
-        scaled_wheel_misalignment_penalty = np.clip(scaled_wheel_misalignment_penalty, -1, 0)
-        y_velocity_penalty = np.clip(y_velocity_penalty, -1, 0)
-        actuation_penalty = np.clip(actuation_penalty, -1, 0)
-        drive_penalty = np.clip(drive_penalty, -1, 0)
-        steer_penalty = np.clip(steer_penalty, -1, 0)
-        body_rotation_penalty = np.clip(body_rotation_penalty, -1, 0)
+        def sigmoid_clip(x, lower=-10, upper=0):
+            return lower + (upper - lower) * (1 / (1 + np.exp(-x)))
+
+        wheel_misalignment_penalty = sigmoid_clip(wheel_misalignment_penalty)
+        y_velocity_penalty = sigmoid_clip(y_velocity_penalty)
+        actuation_penalty = sigmoid_clip(actuation_penalty)
+        drive_penalty = sigmoid_clip(drive_penalty)
+        steer_penalty = sigmoid_clip(steer_penalty)
+        body_rotation_penalty = sigmoid_clip(body_rotation_penalty)
 
         reward_scale = 0.01
         secondary_scale = reward_scale*1
         
         # Combine rewards
-        reward = reward_scale*x_velocity + secondary_scale*(y_velocity_penalty + actuation_penalty + drive_penalty + scaled_wheel_misalignment_penalty + body_rotation_penalty + steer_penalty)
+        reward = reward_scale*x_velocity + secondary_scale*(y_velocity_penalty + actuation_penalty + drive_penalty + wheel_misalignment_penalty + body_rotation_penalty + steer_penalty)
 
         return reward 
 
@@ -411,7 +430,7 @@ if __name__ == "__main__":
             
             observation, reward, terminated, truncated, info = env.step(action)
             total_reward += reward
-            print(f"Reward: {reward} action: {action}")
+            print(f"Reward: {reward} action: {action}, observation: {observation[8:12]}")
             env.render()
             time.sleep(0.01)  # Small delay to prevent excessive CPU usage
     except Exception as e:
