@@ -70,10 +70,10 @@ Sensors (name/sensor/parameter):
         
         <body name="steer_FL" pos="0 0 -0.05">
           <joint name="slide_FL_joint" type="slide" axis="0 0 1" stiffness="10000" damping="100"/>
-          <joint name="steer_FL_joint" pos="0 0 0" axis="0 0 1" damping="1" frictionloss="1"/>
+          <joint name="steer_FL_joint" pos="0 0 0" axis="0 0 1" damping="0.1" frictionloss="1"/>
           <geom name="steer_FL_geom" type="cylinder" size=".1 .005" rgba="0.1 0.2 0 0.5"/>
           <body name="drive_FL" pos="0 0 -0.05">
-            <joint name="drive_FL_joint" pos="0 0 0" axis="0 1 0" frictionloss="1"/>
+            <joint name="drive_FL_joint" pos="0 0 0" axis="0 1 0" damping="0.1" frictionloss="1"/>
             <geom name="drive_FL_geom" type="capsule" size=".05 .025" rgba="1 0 0 1" xyaxes="1 0 0 0 0 1"/>
           </body>
         </body>
@@ -83,10 +83,10 @@ Sensors (name/sensor/parameter):
         
         <body name="steer_FR" pos="0 0 -0.05">
           <joint name="slide_FR_joint" type="slide" axis="0 0 1" stiffness="10000" damping="100"/>
-          <joint name="steer_FR_joint" pos="0 0 0" axis="0 0 1" damping="1" frictionloss="1"/>
+          <joint name="steer_FR_joint" pos="0 0 0" axis="0 0 1" damping="0.1" frictionloss="1"/>
           <geom name="steer_FR_geom" type="cylinder" size=".1 .005" rgba="0.1 0.2 0 0.5"/>
           <body name="drive_FR" pos="0 0 -0.05">
-            <joint name="drive_FR_joint" pos="0 0 0" axis="0 1 0" frictionloss="1"/>
+            <joint name="drive_FR_joint" pos="0 0 0" axis="0 1 0" damping="0.1" frictionloss="1"/>
             <geom name="drive_FR_geom" type="capsule" size=".05 .025" rgba="1 0 0 1" xyaxes="1 0 0 0 0 1"/>
           </body>
         </body>
@@ -96,10 +96,10 @@ Sensors (name/sensor/parameter):
         
         <body name="steer_BL" pos="0 0 -0.05">
           <joint name="slide_BL_joint" type="slide" axis="0 0 1" stiffness="10000"  damping="100"/>
-          <joint name="steer_BL_joint" pos="0 0 0" axis="0 0 1" damping="1"  frictionloss="1"/>
+          <joint name="steer_BL_joint" pos="0 0 0" axis="0 0 1" damping="0.1"  frictionloss="1"/>
           <geom name="steer_BL_geom" type="cylinder" size=".1 .005" rgba="0.1 0.2 0 0.5"/>
           <body name="drive_BL" pos="0 0 -0.05">
-            <joint name="drive_BL_joint" pos="0 0 0" axis="0 1 0"  frictionloss="1"/>
+            <joint name="drive_BL_joint" pos="0 0 0" axis="0 1 0" damping="0.1"  frictionloss="1"/>
             <geom name="drive_BL_geom" type="capsule" size=".05 .025" rgba="1 0 0 1" xyaxes="1 0 0 0 0 1"/>
           </body>
         </body>
@@ -109,10 +109,10 @@ Sensors (name/sensor/parameter):
         
         <body name="steer_BR" pos="0 0 -0.05">
           <joint name="slide_BR_joint" type="slide" axis="0 0 1" stiffness="10000" damping="100"/>
-          <joint name="steer_BR_joint" pos="0 0 0" axis="0 0 1" damping="1"  frictionloss="1"/>
+          <joint name="steer_BR_joint" pos="0 0 0" axis="0 0 1" damping="0.1"  frictionloss="1"/>
           <geom name="steer_BR_geom" type="cylinder" size=".1 .005" rgba="0.1 0.2 0 0.5"/>
           <body name="drive_BR" pos="0 0 -0.05">
-            <joint name="drive_BR_joint" pos="0 0 0" axis="0 1 0" frictionloss="1"/>
+            <joint name="drive_BR_joint" pos="0 0 0" axis="0 1 0" damping="0.1"  frictionloss="1"/>
             <geom name="drive_BR_geom" type="capsule" size=".05 .025" rgba="1 0 0 1" xyaxes="1 0 0 0 0 1"/>
           </body>
         </body>
@@ -126,10 +126,10 @@ Sensors (name/sensor/parameter):
     <motor name="motor_FR_drive" joint="drive_FR_joint" ctrllimited="true" ctrlrange="-1 1" gear="10"/>
     <motor name="motor_BL_drive" joint="drive_BL_joint" ctrllimited="true" ctrlrange="-1 1" gear="10"/>
     <motor name="motor_BR_drive" joint="drive_BR_joint" ctrllimited="true" ctrlrange="-1 1" gear="10"/>
-    <motor name="motor_FL_steer" joint="steer_FL_joint" ctrllimited="true" ctrlrange="-1 1" gear="20"/>
-    <motor name="motor_FR_steer" joint="steer_FR_joint" ctrllimited="true" ctrlrange="-1 1" gear="20"/>
-    <motor name="motor_BL_steer" joint="steer_BL_joint" ctrllimited="true" ctrlrange="-1 1" gear="20"/>
-    <motor name="motor_BR_steer" joint="steer_BR_joint" ctrllimited="true" ctrlrange="-1 1" gear="20"/>
+    <motor name="motor_FL_steer" joint="steer_FL_joint" ctrllimited="true" ctrlrange="-1 1" gear="10"/>
+    <motor name="motor_FR_steer" joint="steer_FR_joint" ctrllimited="true" ctrlrange="-1 1" gear="10"/>
+    <motor name="motor_BL_steer" joint="steer_BL_joint" ctrllimited="true" ctrlrange="-1 1" gear="10"/>
+    <motor name="motor_BR_steer" joint="steer_BR_joint" ctrllimited="true" ctrlrange="-1 1" gear="10"/>
   </actuator>
   
   <sensor>

@@ -13,10 +13,10 @@ model:
   n_steps: 4096
   batch_size: 64
   n_epochs: 10
-  gamma: 0.999
+  gamma: 0.99
   gae_lambda: 0.95
   clip_range: 0.2
-  ent_coef: 0.0001
+  ent_coef: 0.01
   vf_coef: 0.5
   max_grad_norm: 0.5
   use_sde: true
@@ -24,10 +24,9 @@ train:
   total_timesteps: 50000000
   log_interval: 1
   eval_freq: 100000
-  n_eval_episodes: 5
-  deterministic_eval: false
+  n_eval_episodes: 2
+  deterministic_eval: true
   render_eval: true
-  render_delay: 0.01
 
 save:
   model_dir: ./quadbot_models
