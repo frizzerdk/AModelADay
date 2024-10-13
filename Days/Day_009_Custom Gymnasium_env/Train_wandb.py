@@ -110,15 +110,12 @@ def train():
     wandb.define_metric("eval/success_rate", summary="mean")
 
     # Create the environments
-    env = QuadbotEnv(max_steps=cfg.env.max_steps)
+    env = QuadbotEnv(max_steps=cfg.env.max_steps, config=cfg)
     env = Monitor(env, cfg.monitor_dir)
-    #env
 
-    
-    eval_env = QuadbotEnv(max_steps=cfg.env.max_steps,  render_mode="rgb_array")
-    eval_env = Monitor(eval_env, cfg.monitor_dir)  # Wrap with Monitor
+    eval_env = QuadbotEnv(max_steps=cfg.env.max_steps, render_mode="rgb_array", config=cfg)
+    eval_env = Monitor(eval_env, cfg.monitor_dir)
     eval_env = RecordVideo(eval_env, video_folder=cfg.video_dir, episode_trigger=lambda x: x % cfg.train.n_eval_episodes == 0)
-    #eval_env = DummyVecEnv([lambda: eval_env])
 
     # Set up the callbacks
     wandb_callback = WandbCallback()
@@ -142,17 +139,17 @@ def train():
 
     # Load the model with GPU support
     model = PPO(cfg.model.policy, env, verbose=1, 
-                learning_rate=cfg.model.learning_rate, 
-                n_steps=cfg.model.n_steps,
-                batch_size=cfg.model.batch_size,
-                n_epochs=cfg.model.n_epochs,
-                gamma=cfg.model.gamma,
-                gae_lambda=cfg.model.gae_lambda,
-                clip_range=cfg.model.clip_range,
-                ent_coef=cfg.model.ent_coef,
-                vf_coef=cfg.model.vf_coef,
-                max_grad_norm=cfg.model.max_grad_norm,
-                use_sde=cfg.model.use_sde,
+                # learning_rate=cfg.model.learning_rate, 
+                # n_steps=cfg.model.n_steps,
+                # batch_size=cfg.model.batch_size,
+                # n_epochs=cfg.model.n_epochs,
+                # gamma=cfg.model.gamma,
+                # gae_lambda=cfg.model.gae_lambda,
+                # clip_range=cfg.model.clip_range,
+                # ent_coef=cfg.model.ent_coef,
+                # vf_coef=cfg.model.vf_coef,
+                # max_grad_norm=cfg.model.max_grad_norm,
+                # use_sde=cfg.model.use_sde,
                 
                 device=device)
 

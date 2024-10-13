@@ -62,56 +62,56 @@ Sensors (name/sensor/parameter):
     <camera name='fixed' pos='0 -2.5 0' quat='0.707 0.707 0 0'/>
     <geom name="floor" type="plane" size="3 3 .01" pos="-0.025 -0.295  0" material="grid"/>
 
-    <body name="body" pos="0 0 0.25">
+    <body name="body" pos="0 0 0.225">
       <freejoint name="body_joint"/>
       <geom name="body_geom" type="box" size=".5 .5 .1" rgba="0.7 0.7 0.7 0.5" density="100"/>
       
-      <body name="steer_FL_base" pos="0.5 0.5 -0.15">
+      <body name="steer_FL_base" pos="0.5 0.5 -0.1">
         
         <body name="steer_FL" pos="0 0 -0.05">
           <joint name="slide_FL_joint" type="slide" axis="0 0 1" stiffness="10000" damping="100"/>
           <joint name="steer_FL_joint" pos="0 0 0" axis="0 0 1" damping="1" frictionloss="1"/>
           <geom name="steer_FL_geom" type="cylinder" size=".1 .005" rgba="0.1 0.2 0 0.5"/>
-          <body name="drive_FL" pos="0 0 -0.08">
+          <body name="drive_FL" pos="0 0 -0.05">
             <joint name="drive_FL_joint" pos="0 0 0" axis="0 1 0" damping="0.1" frictionloss="1"/>
             <geom name="drive_FL_geom" type="capsule" size=".05 .025" rgba="1 0 0 1" xyaxes="1 0 0 0 0 1"/>
           </body>
         </body>
       </body>
       
-      <body name="steer_FR_base" pos="0.5 -0.5 -0.15">
+      <body name="steer_FR_base" pos="0.5 -0.5 -0.1">
         
         <body name="steer_FR" pos="0 0 -0.05">
           <joint name="slide_FR_joint" type="slide" axis="0 0 1" stiffness="10000" damping="100"/>
           <joint name="steer_FR_joint" pos="0 0 0" axis="0 0 1" damping="1" frictionloss="1"/>
           <geom name="steer_FR_geom" type="cylinder" size=".1 .005" rgba="0.1 0.2 0 0.5"/>
-          <body name="drive_FR" pos="0 0 -0.08">
+          <body name="drive_FR" pos="0 0 -0.05">
             <joint name="drive_FR_joint" pos="0 0 0" axis="0 1 0" damping="0.1" frictionloss="1"/>
             <geom name="drive_FR_geom" type="capsule" size=".05 .025" rgba="1 0 0 1" xyaxes="1 0 0 0 0 1"/>
           </body>
         </body>
       </body>
       
-      <body name="steer_BL_base" pos="-0.5 0.5 -0.15">
+      <body name="steer_BL_base" pos="-0.5 0.5 -0.1">
         
         <body name="steer_BL" pos="0 0 -0.05">
           <joint name="slide_BL_joint" type="slide" axis="0 0 1" stiffness="10000"  damping="100"/>
           <joint name="steer_BL_joint" pos="0 0 0" axis="0 0 1" damping="1"  frictionloss="1"/>
           <geom name="steer_BL_geom" type="cylinder" size=".1 .005" rgba="0.1 0.2 0 0.5"/>
-          <body name="drive_BL" pos="0 0 -0.08">
+          <body name="drive_BL" pos="0 0 -0.05">
             <joint name="drive_BL_joint" pos="0 0 0" axis="0 1 0" damping="0.1"  frictionloss="1"/>
             <geom name="drive_BL_geom" type="capsule" size=".05 .025" rgba="1 0 0 1" xyaxes="1 0 0 0 0 1"/>
           </body>
         </body>
       </body>
       
-      <body name="steer_BR_base" pos="-0.5 -0.5 -0.15">
+      <body name="steer_BR_base" pos="-0.5 -0.5 -0.1">
         
         <body name="steer_BR" pos="0 0 -0.05">
           <joint name="slide_BR_joint" type="slide" axis="0 0 1" stiffness="10000" damping="100"/>
           <joint name="steer_BR_joint" pos="0 0 0" axis="0 0 1" damping="1"  frictionloss="1"/>
           <geom name="steer_BR_geom" type="cylinder" size=".1 .005" rgba="0.1 0.2 0 0.5"/>
-          <body name="drive_BR" pos="0 0 -0.08">
+          <body name="drive_BR" pos="0 0 -0.05">
             <joint name="drive_BR_joint" pos="0 0 0" axis="0 1 0" damping="0.1"  frictionloss="1"/>
             <geom name="drive_BR_geom" type="capsule" size=".05 .025" rgba="1 0 0 1" xyaxes="1 0 0 0 0 1"/>
           </body>
@@ -133,17 +133,21 @@ Sensors (name/sensor/parameter):
   </actuator>
   
   <sensor>
-    <jointpos name="steerpos_FL" joint="steer_FL_joint"/>
+    <jointpos name="steerpos_FL" joint="steer_FL_joint"/> <!-- angles of wheel steer positions (4) -->
     <jointpos name="steerpos_FR" joint="steer_FR_joint"/>
     <jointpos name="steerpos_BL" joint="steer_BL_joint"/>
     <jointpos name="steerpos_BR" joint="steer_BR_joint"/>
-    <jointvel name="drivevel_FL" joint="drive_FL_joint"/>
+    <jointvel name="steervel_FL" joint="steer_FL_joint"/> <!-- angular velocities of wheel steer positions (4) -->
+    <jointvel name="steervel_FR" joint="steer_FR_joint"/>
+    <jointvel name="steervel_BL" joint="steer_BL_joint"/>
+    <jointvel name="steervel_BR" joint="steer_BR_joint"/>
+    <jointvel name="drivevel_FL" joint="drive_FL_joint"/> <!-- wheel drive velocities (4) -->
     <jointvel name="drivevel_FR" joint="drive_FR_joint"/>
     <jointvel name="drivevel_BL" joint="drive_BL_joint"/>
     <jointvel name="drivevel_BR" joint="drive_BR_joint"/>
-    <framepos name="body_pos" objtype="body" objname="body"/>
-    <framelinvel name="body_linvel" objtype="body" objname="body"/>
-    <framexaxis name="body_xaxis" objtype="body" objname="body"/>
-    
+    <framepos name="body_pos" objtype="body" objname="body"/> <!-- body position (3) -->
+    <framelinvel name="body_linvel" objtype="body" objname="body"/> <!-- body linear velocity (3) -->
+    <frameangvel name="body_angvel" objtype="body" objname="body"/> <!-- body angular velocity (3) -->
+    <framexaxis name="body_xaxis" objtype="body" objname="body"/> <!-- body x-axis orientation (3) -->
   </sensor>
 </mujoco>

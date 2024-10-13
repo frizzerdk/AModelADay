@@ -1,0 +1,61 @@
+project_name: quadbot_chaser_ppo
+username: frizzerdk
+
+env:
+  name: QuadChaseEnv
+  max_steps: 1000
+  frame_skip: 2
+  render_mode: ""
+  xml_file: "quadbot.xml"
+  reset_noise_scale: 0.1
+  default_camera_config:
+    distance: 15
+  observation_max_wheel_steer_vel: 5
+  observation_max_wheel_drive_vel: 100
+  observation_max_body_linear_vel: 20
+  observation_max_body_angular_vel: 3
+  observation_max_body_position: 10
+  steer_joint_damping: 0.1
+  drive_joint_damping: 0.05
+  steer_actuator_gain: 2
+  drive_actuator_gain: 3
+  target_pos_range: 2
+  reward_scale_action_penalty: 0.01
+  reward_scale_wheel_misalignment: 1.0
+  reward_scale_position_penalty: 1.0
+  reward_scale_success_reward: 10
+  wheel_alignment_threshold: 10
+  reward_scale_total: 1.0
+  
+model:
+  policy: MlpPolicy
+  learning_rate: 3e-4
+  n_steps: 2048
+  batch_size: 64
+  n_epochs: 10
+  gamma: 0.99
+  gae_lambda: 0.95
+  clip_range: 0.2
+  ent_coef: 0.001
+  vf_coef: 0.5
+  max_grad_norm: 0.5
+  use_sde: true
+  sde_sample_freq: -1
+
+train:
+  total_timesteps: 10000000
+  log_interval: 1
+  eval_freq: 200000
+  n_eval_episodes: 2
+  deterministic_eval: true
+  render_eval: true
+
+save:
+  model_dir: ./quadbot_models
+  save_freq: 50000
+
+monitor_dir: ./quadbot_monitor
+video_dir: ./quadbot_video
+log_dir: ./quadbot_logs
+checkpoint_path: ./quadbot_checkpoints
+is_sweep: false

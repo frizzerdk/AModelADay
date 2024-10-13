@@ -24,7 +24,7 @@ class SweepAgentLauncher:
         master.title("Sweep Agent Launcher")
 
         # Load configuration
-        self.cfg = util.load_and_override_config(".", "config")
+        self.cfg = util.load_and_override_config(".", "quadbot_config")
 
         # Create and set up widgets
         self.create_widgets()
