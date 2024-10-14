@@ -5,6 +5,7 @@
 **/video/*
 **/quadbot_video/*
 **/checkpoints/*
+**/monitor/*
 
 # wandb
 **/wandb/

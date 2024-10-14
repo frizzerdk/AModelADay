@@ -26,25 +26,19 @@ assert torch.cuda.is_available(), "No GPU available"
 
 def train():
     # Load configuration
-    cfg = util.load_and_override_config(".", "quadbotchaser_config", init_wandb=True, update_wandb=True)
+    cfg = util.load_and_override_config(".", "config", init_wandb=True, update_wandb=True)
     print(OmegaConf.to_yaml(cfg))
+
+    # Add code to the wandb artifacts
+    wandb.save("quadbot.xml")
+    wandb.save("config.yaml")
+    wandb.save("QuadChaseEnv.py")
 
     # Initialize WandB
     wandb.gym.monitor()  # Enable video logging
-    wandb.define_metric("eval/mean_reward", summary="min")
-    wandb.define_metric("eval/mean_reward", summary="max")
     wandb.define_metric("eval/mean_reward", summary="mean")
-    wandb.define_metric("eval/mean_ep_length", summary="min")
-    wandb.define_metric("eval/mean_ep_length", summary="max")
     wandb.define_metric("eval/mean_ep_length", summary="mean")
-    wandb.define_metric("eval/max_ep_reward", summary="min")
-    wandb.define_metric("eval/max_ep_reward", summary="max")
-    wandb.define_metric("eval/max_ep_reward", summary="mean")
-    wandb.define_metric("eval/min_ep_reward", summary="min")
-    wandb.define_metric("eval/min_ep_reward", summary="max")
     wandb.define_metric("eval/min_ep_reward", summary="mean")
-    wandb.define_metric("eval/success_rate", summary="min")
-    wandb.define_metric("eval/success_rate", summary="max")
     wandb.define_metric("eval/success_rate", summary="mean")
 
     # Create the environments
@@ -83,7 +77,7 @@ def train():
     print(f"Using device: {device}")
     # custom network
     policy_kwargs = dict(activation_fn=torch.nn.LeakyReLU,
-                         net_arch=dict(pi=[256, 256], vf=[256, 256]))
+                         net_arch=dict(pi=[cfg.model.hidden_layers_size, cfg.model.hidden_layers_size], vf=[cfg.model.hidden_layers_size, cfg.model.hidden_layers_size]))
     # Load the model with GPU support
     model = PPO(cfg.model.policy, env, verbose=1, policy_kwargs=policy_kwargs,
                 learning_rate=cfg.model.learning_rate, 

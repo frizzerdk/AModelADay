@@ -52,7 +52,9 @@ Sensors (name/sensor/parameter):
   <asset>
     <texture type="skybox" builtin="gradient" rgb1=".3 .5 .7" rgb2="0 0 0" width="32" height="512"/>
     <texture name="grid" type="2d" builtin="checker" width="512" height="512" rgb1=".4 .5 .6" rgb2=".7 .8 .9"/>
+    <texture name="grid_centre" type="2d" builtin="checker" width="512" height="512" rgb1=".4 .5 .6" rgb2=".7 .8 .9"/>
     <material name="grid" texture="grid" texrepeat="2 2" texuniform="true" reflectance=".2"/>
+    <material name="grid_centre" texture="grid_centre" texrepeat="2 2" texuniform="true" reflectance=".1"/>
   </asset>
 
   <option gravity="0 0 -9"/>
@@ -61,6 +63,7 @@ Sensors (name/sensor/parameter):
    <light name="light1" pos="1 1 10" dir="0.1 0.1 -1" diffuse=".8 .8 .8" specular=".2 .2 .2" ambient=".6 .5 .5"/>
     <camera name='fixed' pos='0 -2.5 0' quat='0.707 0.707 0 0'/>
     <geom name="floor" type="plane" size="3 3 .01" pos="-0.025 -0.295  0" material="grid"/>
+    <geom name="centre" type="plane" size="0.5 0.5 .01" pos="0 0 0" material="grid"/>
 
     <body name="body" pos="0 0 0.225">
       <freejoint name="body_joint"/>
@@ -126,10 +129,16 @@ Sensors (name/sensor/parameter):
     <motor name="motor_FR_drive" joint="drive_FR_joint" ctrllimited="true" ctrlrange="-1 1" gear="5"/>
     <motor name="motor_BL_drive" joint="drive_BL_joint" ctrllimited="true" ctrlrange="-1 1" gear="5"/>
     <motor name="motor_BR_drive" joint="drive_BR_joint" ctrllimited="true" ctrlrange="-1 1" gear="5"/>
+    <position name="pos_FL_steer" joint="steer_FL_joint" kp="10" ctrlrange="-3.14159 3.14159"/>
+    <position name="pos_FR_steer" joint="steer_FR_joint" kp="10" ctrlrange="-3.14159 3.14159"/>
+    <position name="pos_BL_steer" joint="steer_BL_joint" kp="10" ctrlrange="-3.14159 3.14159"/>
+    <position name="pos_BR_steer" joint="steer_BR_joint" kp="10" ctrlrange="-3.14159 3.14159"/>
+    <!--
     <motor name="motor_FL_steer" joint="steer_FL_joint" ctrllimited="true" ctrlrange="-1 1" gear="5"/>
     <motor name="motor_FR_steer" joint="steer_FR_joint" ctrllimited="true" ctrlrange="-1 1" gear="5"/>
     <motor name="motor_BL_steer" joint="steer_BL_joint" ctrllimited="true" ctrlrange="-1 1" gear="5"/>
     <motor name="motor_BR_steer" joint="steer_BR_joint" ctrllimited="true" ctrlrange="-1 1" gear="5"/>
+    -->
   </actuator>
   
   <sensor>

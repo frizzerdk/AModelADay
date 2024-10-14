@@ -1,0 +1,116 @@
+program: train.py
+method: bayes
+metric:
+  name: eval/mean_reward
+  goal: maximize
+parameters:
+  # Environment parameters
+  env.frame_skip:
+    distribution: int_uniform
+    min: 1
+    max: 10
+  env.steer_joint_damping:
+    distribution: uniform
+    min: 0.01
+    max: 0.5
+  env.drive_joint_damping:
+    distribution: uniform
+    min: 0.01
+    max: 0.2
+  env.steer_actuator_gain:
+    distribution: uniform
+    min: 1
+    max: 10
+  env.drive_actuator_gain:
+    distribution: uniform
+    min: 1
+    max: 10
+  env.reset_noise_scale:
+    distribution: uniform
+    min: 0
+    max: 2
+  env.reset_pos_offset:
+    distribution: uniform
+    min: 1
+    max: 4
+  env.target_pos_distance:
+    distribution: uniform
+    min: 2
+    max: 5
+  env.reward_scale_action_penalty:
+    distribution: uniform
+    min: 0.01
+    max: 0.5
+  env.reward_scale_wheel_misalignment:
+    distribution: uniform
+    min: 0.5
+    max: 2
+  env.reward_scale_position_penalty:
+    distribution: uniform
+    min: 0.5
+    max: 2
+  env.reward_scale_success_reward:
+    distribution: uniform
+    min: 5
+    max: 20
+  env.wheel_alignment_threshold:
+    distribution: int_uniform
+    min: 5
+    max: 20
+  env.reward_scale_total:
+    distribution: uniform
+    min: 0.5
+    max: 2
+  env.steer_kp:
+    distribution: uniform
+    min: 5
+    max: 20
+
+  # Model parameters
+  model.learning_rate:
+    distribution: log_uniform
+    min: 1e-4
+    max: 9e-4
+  model.n_steps:
+    values: [2048, 4096, 8192]
+  model.batch_size:
+    values: [32, 64, 128, 256]
+  model.n_epochs:
+    values: [5, 10, 20]
+  model.gamma:
+    distribution: uniform
+    min: 0.9
+    max: 0.9999
+  model.gae_lambda:
+    distribution: uniform
+    min: 0.9
+    max: 1.0
+  model.clip_range:
+    distribution: uniform
+    min: 0.1
+    max: 0.3
+  model.ent_coef:
+    distribution: log_uniform
+    min: -5
+    max: -2
+  model.vf_coef:
+    distribution: uniform
+    min: 0.1
+    max: 1.0
+  model.max_grad_norm:
+    distribution: uniform
+    min: 0.1
+    max: 1.0
+  model.use_sde:
+    values: [true, false]
+  model.sde_sample_freq:
+    distribution: int_uniform
+    min: -1
+    max: 100
+  model.hidden_layers_size:
+    values: [64, 256, 512, 1024]
+early_terminate:
+  type: hyperband
+  s: 2
+  eta: 3
+  max_iter: 27

@@ -44,7 +44,7 @@ class QuadChaseEnv(MujocoEnv, utils.EzPickle):
 
         ############################################################
         # Set default values for config
-        self.config.reset_noise_scale= self.config.get("reset_noise_scale", 0.01)
+        self.config.reset_noise_scale= self.config.get("reset_noise_scale", 1)
         self.config.observation_max_wheel_steer_vel = self.config.get("observation_max_wheel_steer_vel", 5)
         self.config.observation_max_wheel_drive_vel = self.config.get("observation_max_wheel_drive_vel", 100)
         self.config.observation_max_body_linear_vel = self.config.get("observation_max_body_linear_vel", 20)
@@ -54,7 +54,9 @@ class QuadChaseEnv(MujocoEnv, utils.EzPickle):
         self.config.drive_joint_damping = self.config.get("drive_joint_damping", 0.05)
         self.config.steer_actuator_gain = self.config.get("steer_actuator_gain", 3)
         self.config.drive_actuator_gain = self.config.get("drive_actuator_gain", 5)
-        self.config.target_pos_range = self.config.get("target_pos_range", 2)
+        self.config.steer_kp = self.config.get("steer_kp", 10)
+        self.config.reset_pos_offset = self.config.get("reset_pos_offset", 2)
+        self.config.target_pos_distance = self.config.get("target_pos_distance", 3)
         self.config.reward_scale_action_penalty = self.config.get("reward_scale_action_penalty", 0.1)
         self.config.reward_scale_wheel_misalignment = self.config.get("reward_scale_wheel_misalignment", 1.0)
         self.config.reward_scale_position_penalty = self.config.get("reward_scale_position_penalty", 1.0)
@@ -187,6 +189,9 @@ class QuadChaseEnv(MujocoEnv, utils.EzPickle):
         temp_xml_file = f"{xml_file}_temp_{random.randint(0, 1000000)}.xml"
         temp_xml_file = os.path.join(file_dir, temp_xml_file)
         
+        # target
+        self.target_pos = np.array([self.config.target_pos_distance, self.config.target_pos_distance])
+        
 
         util.make_modified_xml_file( os.path.join(file_dir, xml_file), temp_xml_file, 
                                     [("steer_BR_joint", "damping", self.config.steer_joint_damping),
@@ -204,7 +209,12 @@ class QuadChaseEnv(MujocoEnv, utils.EzPickle):
                                      ("motor_BR_steer", "gear", self.config.steer_actuator_gain),
                                      ("motor_BL_steer", "gear", self.config.steer_actuator_gain),
                                      ("motor_FR_steer", "gear", self.config.steer_actuator_gain),
-                                     ("motor_FL_steer", "gear", self.config.steer_actuator_gain)])
+                                     ("motor_FL_steer", "gear", self.config.steer_actuator_gain),
+                                     ("centre", "pos", f"{self.target_pos[0]} {self.target_pos[1]} 0.001"),
+                                     ("motor_FL_steer", "kp", self.config.steer_kp),
+                                     ("motor_FR_steer", "kp", self.config.steer_kp),
+                                     ("motor_BL_steer", "kp", self.config.steer_kp),
+                                     ("motor_BR_steer", "kp", self.config.steer_kp)])
         
         MujocoEnv.__init__(self,
                            temp_xml_file, 
@@ -217,8 +227,6 @@ class QuadChaseEnv(MujocoEnv, utils.EzPickle):
         # render fps
         self.metadata["render_fps"] = int(1.0 / (self.model.opt.timestep * frame_skip))
 
-        # target
-        self.target_pos = np.array([0, 0])
         
         
         self.reset_model()
@@ -281,12 +289,14 @@ class QuadChaseEnv(MujocoEnv, utils.EzPickle):
         #qpos
         reset_angle = self.np_random.uniform(0, 2 * np.pi)
         reset_direction = np.array([np.cos(reset_angle), np.sin(reset_angle)])
-        reset_distance = self.np_random.uniform(low=1, high=self.config.target_pos_range)
-        reset_pos = reset_direction * reset_distance
+        reset_distance = self.np_random.uniform(low=1, high=self.config.reset_pos_offset)*0.1*self.config.reset_noise_scale
+        reset_pos = reset_direction * reset_distance +np.array([-self.config.target_pos_distance ,-self.config.target_pos_distance])
         qpos[[self.qpos_map["body_pos_x"], self.qpos_map["body_pos_y"]]] = reset_pos
         qpos[self.qpos_map["body_pos_z"]] += 0
         # Generate a random rotation around the z-axis
-        angle = self.np_random.uniform(0, 2 * np.pi)
+        angle_center = np.pi/4
+        angle_range = np.radians(30)*self.config.reset_noise_scale
+        angle = self.np_random.uniform(angle_center - angle_range, angle_center + angle_range)
         qpos[self.qpos_map["body_quaternion_x"]] = np.sin(angle / 2) * 0
         qpos[self.qpos_map["body_quaternion_y"]] = np.sin(angle / 2) * 0
         qpos[self.qpos_map["body_quaternion_z"]] = np.sin(angle / 2) * 1
@@ -332,7 +342,6 @@ class QuadChaseEnv(MujocoEnv, utils.EzPickle):
         self.reward_breakdown["distance_closed_to_target"] = distance_closed_to_target
         success_reward = 0 if position_error > 0.5 else 1
         self.reward_breakdown["success_reward"] = success_reward * self.config.reward_scale_success_reward
-
         #### Penalties ####
         position_penalty = -position_error * self.config.reward_scale_position_penalty  
         self.reward_breakdown["position_penalty"] = position_penalty
