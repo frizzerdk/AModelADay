@@ -16,7 +16,7 @@ DEFAULT_CAMERA_CONFIG = {
 
 class QuadChaseEnv(MujocoEnv, utils.EzPickle):
     metadata = {
-        "render_modes": ["human", "rgb_array", "depth_array"],
+        "render_modes": ["human", "rgb_array", "depth_array"]
     }
 
     def __init__(self, 
@@ -44,25 +44,36 @@ class QuadChaseEnv(MujocoEnv, utils.EzPickle):
 
         ############################################################
         # Set default values for config
-        self.config.reset_noise_scale= self.config.get("reset_noise_scale", 1)
-        self.config.observation_max_wheel_steer_vel = self.config.get("observation_max_wheel_steer_vel", 5)
-        self.config.observation_max_wheel_drive_vel = self.config.get("observation_max_wheel_drive_vel", 100)
-        self.config.observation_max_body_linear_vel = self.config.get("observation_max_body_linear_vel", 20)
-        self.config.observation_max_body_angular_vel = self.config.get("observation_max_body_angular_vel", 3)
-        self.config.observation_max_body_position = self.config.get("observation_max_body_position", 10)     
+        # Robot physical properties
         self.config.steer_joint_damping = self.config.get("steer_joint_damping", 0.1)
         self.config.drive_joint_damping = self.config.get("drive_joint_damping", 0.05)
         self.config.steer_actuator_gain = self.config.get("steer_actuator_gain", 3)
         self.config.drive_actuator_gain = self.config.get("drive_actuator_gain", 5)
         self.config.steer_kp = self.config.get("steer_kp", 10)
+
+        # Observation space parameters
+        self.config.observation_max_wheel_steer_vel = self.config.get("observation_max_wheel_steer_vel", 5)
+        self.config.observation_max_wheel_drive_vel = self.config.get("observation_max_wheel_drive_vel", 100)
+        self.config.observation_max_body_linear_vel = self.config.get("observation_max_body_linear_vel", 20)
+        self.config.observation_max_body_angular_vel = self.config.get("observation_max_body_angular_vel", 3)
+        self.config.observation_max_body_position = self.config.get("observation_max_body_position", 10)     
+
+        # Environment reset parameters
+        self.config.reset_noise_scale = self.config.get("reset_noise_scale", 1)
         self.config.reset_pos_offset = self.config.get("reset_pos_offset", 2)
         self.config.target_pos_distance = self.config.get("target_pos_distance", 3)
+
+        # Reward function parameters
         self.config.reward_scale_action_penalty = self.config.get("reward_scale_action_penalty", 0.1)
         self.config.reward_scale_wheel_misalignment = self.config.get("reward_scale_wheel_misalignment", 1.0)
-        self.config.reward_scale_position_penalty = self.config.get("reward_scale_position_penalty", 1.0)
-        self.config.reward_scale_success_reward = self.config.get("reward_scale_success_reward", 10)
-        self.config.wheel_alignment_threshold = self.config.get("wheel_alignment_threshold", 10)
+        self.config.reward_scale_position_penalty = self.config.get("reward_scale_position_penalty", 0.0)
+        self.config.reward_scale_success_reward = self.config.get("reward_scale_success_reward", 100)
+        self.config.reward_scale_position_error_change = self.config.get("reward_scale_position_error_change", 100.0)
+        self.config.reward_scale_distance_closed_to_target = self.config.get("reward_scale_distance_closed_to_target", 0.0)
         self.config.reward_scale_total = self.config.get("reward_scale_total", 1.0)
+        self.config.reward_scale_position_error_velocity = self.config.get("reward_scale_position_error_velocity", 10.0)
+        # Other parameters
+        self.config.wheel_alignment_threshold = self.config.get("wheel_alignment_threshold", 10)
         ############################################################
         # State space mapping
         self.qpos_map = {
@@ -225,7 +236,7 @@ class QuadChaseEnv(MujocoEnv, utils.EzPickle):
 
         os.remove(temp_xml_file)
         # render fps
-        self.metadata["render_fps"] = int(1.0 / (self.model.opt.timestep * frame_skip))
+        #self.metadata["render_fps"] = int(1.0 / (self.model.opt.timestep * frame_skip))
 
         
         
@@ -239,14 +250,23 @@ class QuadChaseEnv(MujocoEnv, utils.EzPickle):
         #         self.ctrl_map["motor_BL_steer"], self.ctrl_map["motor_BR_steer"]]] = action[self.ctrl_map["motor_FL_steer"]]
         self.do_simulation(action, self.frame_skip)
         observation = self._get_obs()
+        
         reward = self._compute_reward()
         terminated = self._check_termination()
         truncated = self._steps >= self._max_steps
 
         info = {}
-
+        self.set_previous_features()
         return observation, reward, terminated, truncated, info
-
+    
+    def set_previous_features(self):
+        self.last_position = self.data.qpos[[self.qpos_map["body_pos_x"], self.qpos_map["body_pos_y"]]]
+        self.last_velocity = self.data.qvel[[self.qvel_map["body_linear_vel_x"], self.qvel_map["body_linear_vel_y"], self.qvel_map["body_linear_vel_z"]]]
+        self.last_angular_velocity = self.data.qvel[[self.qvel_map["body_angular_vel_x"], self.qvel_map["body_angular_vel_y"], self.qvel_map["body_angular_vel_z"]]]
+        self.last_steer_position = self.data.qpos[[self.qpos_map["steer_FL"], self.qpos_map["steer_FR"], self.qpos_map["steer_BL"], self.qpos_map["steer_BR"]]]
+        self.last_steer_velocity = self.data.qvel[[self.qvel_map["steer_FL"], self.qvel_map["steer_FR"], self.qvel_map["steer_BL"], self.qvel_map["steer_BR"]]]
+        self.last_drive_velocity = self.data.qvel[[self.qvel_map["drive_FL"], self.qvel_map["drive_FR"], self.qvel_map["drive_BL"], self.qvel_map["drive_BR"]]]
+    
     def _get_obs(self):
         self.latest_sensor_raw = np.concatenate([self.data.sensordata.copy()])
         steer_pos = self.data.qpos[[self.qpos_map["steer_FL"],
@@ -323,6 +343,7 @@ class QuadChaseEnv(MujocoEnv, utils.EzPickle):
 
         self.set_state(qpos, qvel)
         self.get_initial_distance(reset=True)
+        self.set_previous_features()
         return self._get_obs()
     
     def get_initial_distance(self,reset=False):
@@ -332,16 +353,30 @@ class QuadChaseEnv(MujocoEnv, utils.EzPickle):
     
     def _compute_reward(self):
         self.reward_breakdown = {}
+        # Position error
         position = self.latest_sensor_raw[[self.sensor_map["body_pos_x"],
                                            self.sensor_map["body_pos_y"]]]
         position_error = np.linalg.norm(position - self.target_pos)
-
+        # Distance closed to target
         distance_closed_to_target = self.get_initial_distance() - position_error
-
+        # Position error change
+        last_position_error = np.linalg.norm(self.last_position - self.target_pos)
+        position_error_change = last_position_error - position_error
+        position_error_velocity = position_error_change / self.dt
         #### Rewards ####
+        self.reward_breakdown["position_error_change"] = position_error_change
+        position_error_change_scaled = position_error_change * self.config.reward_scale_position_error_change
+        self.reward_breakdown["position_error_change_scaled"] = position_error_change_scaled
+        self.reward_breakdown["position_error_velocity"] = position_error_velocity
+        position_error_velocity_scaled = position_error_velocity * self.config.reward_scale_position_error_velocity
+        self.reward_breakdown["position_error_velocity_scaled"] = position_error_velocity_scaled
         self.reward_breakdown["distance_closed_to_target"] = distance_closed_to_target
+        distance_closed_to_target_scaled = distance_closed_to_target * self.config.reward_scale_distance_closed_to_target
+        self.reward_breakdown["distance_closed_to_target_scaled"] = distance_closed_to_target_scaled
         success_reward = 0 if position_error > 0.5 else 1
-        self.reward_breakdown["success_reward"] = success_reward * self.config.reward_scale_success_reward
+        success_reward_scaled = success_reward * self.config.reward_scale_success_reward
+        self.reward_breakdown["success_reward"] = success_reward
+        self.reward_breakdown["success_reward_scaled"] = success_reward_scaled
         #### Penalties ####
         position_penalty = -position_error * self.config.reward_scale_position_penalty  
         self.reward_breakdown["position_penalty"] = position_penalty
@@ -369,15 +404,16 @@ class QuadChaseEnv(MujocoEnv, utils.EzPickle):
         wheel_misalignment_penalty = -self.config.reward_scale_wheel_misalignment * np.sum(misalignment_penalties)
         self.reward_breakdown["wheel_misalignment_penalty"] = wheel_misalignment_penalty
         # Action penalty
-        action_penalty = -self.config.reward_scale_action_penalty * np.sum(np.square(self.data.ctrl))
+        action_penalty = np.sum(np.square(self.data.ctrl))
         self.reward_breakdown["action_penalty"] = action_penalty
-        total_reward = success_reward + distance_closed_to_target 
-        total_penalty = position_penalty + wheel_misalignment_penalty + action_penalty
+        action_penalty_scaled = action_penalty * self.config.reward_scale_action_penalty
+        self.reward_breakdown["action_penalty_scaled"] = action_penalty_scaled
+        total_reward = success_reward_scaled + distance_closed_to_target_scaled + position_error_change_scaled + position_error_velocity_scaled
+        total_penalty = position_penalty + wheel_misalignment_penalty + action_penalty_scaled
         total_reward_scaled = self.dt * (total_reward + total_penalty) * self.config.reward_scale_total
         self.reward_breakdown["total_reward"] = total_reward
         self.reward_breakdown["total_penalty"] = total_penalty
         self.reward_breakdown["total_reward_scaled"] = total_reward_scaled
-
         return total_reward_scaled
     
     def _check_termination(self):
@@ -410,8 +446,8 @@ if __name__ == "__main__":
     import MyUtils.Util.Misc as mutil
     # Change dir to current file
     os.chdir(os.path.dirname(os.path.abspath(__file__)))
-    if os.path.exists("quadbotchaser_config.yaml"):
-        cfg = mutil.load_and_override_config(".", "quadbotchaser_config", init_wandb=False, update_wandb=False)
+    if os.path.exists("base_config.yaml"):
+        cfg = mutil.load_and_override_config(".", "base_config", init_wandb=False, update_wandb=False)
         env = QuadChaseEnv(render_mode="human", max_steps=10000, config=cfg.env)
     else:
         env = QuadChaseEnv(render_mode="human", max_steps=10000)
@@ -470,11 +506,15 @@ if __name__ == "__main__":
                 observation, reward, terminated, truncated, info = env.step(action)
                 total_reward += reward
                 state = env.get_state()
+                reward_dict = env.get_log_dict()
+                for k, v in reward_dict.items():
+                    if k.startswith("reward/"):
+                        print(f"{k}: {v:.2f}")
                 current_time = time.time()
                 step_duration = current_time - last_step_time
                 steps_per_second = 1 / step_duration if step_duration > 0 else 0
                 last_step_time = current_time
-                print(f"Reward: {reward:.2f} action: {action}, observation: {observation}, Steps/s: {steps_per_second:.2f}")
+                print(f"Reward: {reward/env.dt:.2f} action: {action}, observation: {observation}, Steps/s: {steps_per_second:.2f}")
                 env.render()
             time.sleep(0.01)  # Small delay to prevent excessive CPU usage
     except Exception as e:

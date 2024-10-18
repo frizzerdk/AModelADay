@@ -6,8 +6,10 @@ from stable_baselines3.common.callbacks import EvalCallback, BaseCallback
 import gymnasium as gym
 from gymnasium.wrappers import RecordVideo
 from stable_baselines3 import PPO
+from stable_baselines3.common.vec_env.vec_video_recorder import VecVideoRecorder
 from stable_baselines3.common.vec_env import DummyVecEnv
-from stable_baselines3.common.monitor import Monitor
+from stable_baselines3.common.vec_env import VecNormalize
+from stable_baselines3.common.vec_env.vec_monitor import VecMonitor
 import argparse
 import torch
 import os
@@ -16,6 +18,7 @@ from typing import Any
 from QuadChaseEnv import QuadChaseEnv
 from gymnasium.wrappers import RecordVideo, NormalizeObservation
 from wandb.integration.sb3 import WandbCallback
+from stable_baselines3.common.vec_env import DummyVecEnv, VecNormalize
 
 # Get the directory of the current script
 script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -26,12 +29,12 @@ assert torch.cuda.is_available(), "No GPU available"
 
 def train():
     # Load configuration
-    cfg = util.load_and_override_config(".", "config", init_wandb=True, update_wandb=True)
+    cfg = util.load_and_override_config(".", "base_config", init_wandb=True, update_wandb=True)
     print(OmegaConf.to_yaml(cfg))
 
     # Add code to the wandb artifacts
     wandb.save("quadbot.xml")
-    wandb.save("config.yaml")
+    wandb.save("base_config.yaml")
     wandb.save("QuadChaseEnv.py")
 
     # Initialize WandB
@@ -40,37 +43,68 @@ def train():
     wandb.define_metric("eval/mean_ep_length", summary="mean")
     wandb.define_metric("eval/min_ep_reward", summary="mean")
     wandb.define_metric("eval/success_rate", summary="mean")
+    wandb.define_metric("reward/*", summary="mean")
 
     # Create the environments
-    env = QuadChaseEnv(max_steps=cfg.env.max_steps,
+    env = DummyVecEnv([lambda: QuadChaseEnv(max_steps=cfg.env.max_steps,
                         config=cfg.env,
-                        frame_skip=cfg.env.frame_skip)
-    env = Monitor(env, cfg.monitor_dir)
+                        frame_skip=cfg.env.frame_skip)])
 
-    #env = NormalizeObservation(env) 
+    env = VecNormalize(env, norm_obs=True, norm_reward=True)
 
-    eval_env = QuadChaseEnv(max_steps=cfg.env.max_steps,
-                             render_mode="rgb_array",
+
+    eval_env = DummyVecEnv([lambda: QuadChaseEnv(max_steps=cfg.env.max_steps,
                              config=cfg.env,
-                             frame_skip=cfg.env.frame_skip)
-    eval_env = Monitor(eval_env, cfg.monitor_dir)
-    eval_env = RecordVideo(eval_env, video_folder=cfg.video_dir, episode_trigger=lambda x: x % cfg.train.n_eval_episodes == 0)
+                             frame_skip=cfg.env.frame_skip,
+                             render_mode="rgb_array")])
+    
+    eval_env = VecMonitor(eval_env, cfg.monitor_dir)
+    eval_env = VecVideoRecorder(eval_env,
+                            video_folder=cfg.video_dir, 
+                            #episode_trigger=lambda x: x % (cfg.train.video_freq*cfg.train.n_eval_episodes) == 0, 
+                            record_video_trigger=lambda x: True,
+                            video_length=cfg.train.video_length)
+
+    eval_env = VecNormalize(eval_env, norm_obs=True, norm_reward=True)
+
+
+
+
+
+    # Remove the RecordVideo wrapper from eval_env
     #eval_env = NormalizeObservation(eval_env)
+
     # Set up the callbacks
     wandb_callback = WandbCallback()
     wandb_eval_callback = WandbEvalCallback()
-    eval_callback = EvalCallback(
+
+
+    video_eval_callback = EvalCallback(
         eval_env=eval_env,
+        best_model_save_path=cfg.checkpoint_path,
+        log_path=cfg.log_dir,
+        eval_freq=cfg.train.eval_freq*cfg.train.video_freq,  
+        deterministic=True,
+        render=cfg.train.render_eval,
+        n_eval_episodes=1,
+        callback_after_eval=wandb_eval_callback,
+        verbose=1
+    )
+
+    eval_callback = EvalCallback(
+        eval_env=env,
         best_model_save_path=cfg.checkpoint_path,
         log_path=cfg.log_dir,
         eval_freq=cfg.train.eval_freq,  
         deterministic=True,
-        render=cfg.train.render_eval,
+        render=False,
         n_eval_episodes=cfg.train.n_eval_episodes,
-        callback_after_eval=wandb_eval_callback
+        callback_after_eval=wandb_eval_callback,
+        verbose=1
     )
+    
 
-    callbacks = [eval_callback, wandb_callback]
+    callbacks = [video_eval_callback, eval_callback, wandb_callback]
 
     # Specify the device
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -130,9 +164,9 @@ class WandbCallback(BaseCallback):
 
         # Log info about the current step
         log_data = {
-            "timesteps": self.num_timesteps,
-            "current_episode_reward": self._current_episode_reward,
-            "current_episode_length": self._current_episode_length,
+            "current/timesteps": self.num_timesteps,
+            "current/episode_reward": self._current_episode_reward,
+            "current/episode_length": self._current_episode_length,
         }
 
         # Add state information to log_data
@@ -150,6 +184,8 @@ class WandbCallback(BaseCallback):
 
         return True
 
+
+
 class WandbEvalCallback(BaseCallback):
     def __init__(self, verbose=1):
         super().__init__(verbose)
@@ -158,7 +194,6 @@ class WandbEvalCallback(BaseCallback):
         # This method will be called after each evaluation
         # Log the evaluation results to wandb
         wandb.log({
-            "eval/timesteps": self.parent.num_timesteps,
             "eval/mean_reward": self.parent.last_mean_reward,
             "eval/mean_ep_length": np.mean(self.parent.evaluations_length[-1]) if self.parent.evaluations_length else None,
         })

@@ -24,7 +24,13 @@ class SweepAgentLauncher:
         master.title("Sweep Agent Launcher")
 
         # Load configuration
-        self.cfg = util.load_and_override_config(".", "config")
+        # get the first config file in the current directory
+        config_files = [f for f in os.listdir(".") if f.endswith(".yaml") and 'config' in f.lower() and 'sweep' not in f.lower()]
+        if config_files:
+            config_name = os.path.splitext(config_files[0])[0]
+            self.cfg = util.load_and_override_config(".", config_name)
+        else:
+            raise ValueError("No config file found in the current directory.")
 
         # Create and set up widgets
         self.create_widgets()
@@ -83,16 +89,21 @@ class SweepAgentLauncher:
 
         # Launch button
         self.launch_button = ttk.Button(self.agent_tab, text="Launch Agents", command=self.launch_agents)
-        self.launch_button.grid(row=4, column=0, columnspan=2, pady=10)
+        self.launch_button.grid(row=4, column=0, pady=10)
+
+        # Copy command button
+        self.copy_command_button = ttk.Button(self.agent_tab, text="Copy Agent Command", command=self.copy_agent_command)
+        self.copy_command_button.grid(row=4, column=1, pady=10, padx=5)
 
         # Create a notebook for agent outputs
         self.agent_notebook = ttk.Notebook(self.agent_tab)
-        self.agent_notebook.grid(row=5, column=0, columnspan=2, padx=5, pady=5, sticky="nsew")
+        self.agent_notebook.grid(row=5, column=0, columnspan=3, padx=5, pady=5, sticky="nsew")
 
         # Configure row and column weights
         self.agent_tab.grid_rowconfigure(5, weight=1)
         self.agent_tab.grid_columnconfigure(0, weight=1)
         self.agent_tab.grid_columnconfigure(1, weight=1)
+        self.agent_tab.grid_columnconfigure(2, weight=1)
 
     def create_sweep_tab(self):
         # Create two frames side by side
@@ -418,6 +429,25 @@ class SweepAgentLauncher:
                 messagebox.showerror("Error", "Failed to create new sweep.")
         except Exception as e:
             messagebox.showerror("Error", f"Failed to create new sweep: {str(e)}")
+
+    def copy_agent_command(self):
+        project_name = self.project_name.get()
+        username = self.username.get()
+        sweep_id = self.sweep_id.get()
+
+        if not all([project_name, username, sweep_id]):
+            messagebox.showerror("Error", "Please fill in all fields.")
+            return
+
+        # Get the directory of the InitAgent.py file
+        init_agent_dir = os.path.dirname(os.path.abspath(__file__))
+
+        # Construct the command with cd
+        command = f"cd {init_agent_dir} && wandb agent -p {project_name} -e {username} {sweep_id}"
+
+        self.master.clipboard_clear()
+        self.master.clipboard_append(command)
+        messagebox.showinfo("Success", "Agent command copied to clipboard!")
 
 if __name__ == "__main__":
     root = tk.Tk()

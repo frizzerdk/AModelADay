@@ -20,10 +20,13 @@ env:
   reset_noise_scale: 1
   reset_pos_offset: 2
   target_pos_distance: 3
-  reward_scale_action_penalty: 0.1
+  reward_scale_action_penalty: 0.01
   reward_scale_wheel_misalignment: 1.0
-  reward_scale_position_penalty: 1.0
+  reward_scale_position_penalty: 0.0
   reward_scale_success_reward: 10
+  reward_scale_position_error_change: 10.0
+  reward_scale_distance_closed_to_target: 0.0
+  reward_scale_position_error_velocity: 5.0
   wheel_alignment_threshold: 10
   reward_scale_total: 1.0
   steer_kp: 10
@@ -45,12 +48,14 @@ model:
   hidden_layers_size: 256
 
 train:
-  total_timesteps: 5000000
+  total_timesteps: 3000000
   log_interval: 1
-  eval_freq: 500000
+  eval_freq: 10000
   n_eval_episodes: 5
-  deterministic_eval: true
+  deterministic_eval: false
   render_eval: true
+  video_freq: 20
+  video_length: 1000
 
 save:
   model_dir: ./models
@@ -58,6 +63,7 @@ save:
 
 monitor_dir: ./monitor/
 video_dir: ./video
+video_frame_skip: 5
 log_dir: ./logs
 checkpoint_path: ./checkpoints
 is_sweep: false
