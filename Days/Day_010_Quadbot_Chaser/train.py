@@ -43,6 +43,7 @@ def train():
     wandb.define_metric("eval/mean_ep_length", summary="mean")
     wandb.define_metric("eval/min_ep_reward", summary="mean")
     wandb.define_metric("eval/success_rate", summary="mean")
+    wandb.define_metric("episode/*", summary="mean")
     wandb.define_metric("reward/*", summary="mean")
 
     # Create the environments
@@ -162,16 +163,18 @@ class WandbCallback(BaseCallback):
         # Get the current state
         log_dict = self.training_env.envs[0].unwrapped.get_log_dict()
 
+        log_data = dict()
         # Log info about the current step
-        log_data = {
-            "current/timesteps": self.num_timesteps,
-            "current/episode_reward": self._current_episode_reward,
-            "current/episode_length": self._current_episode_length,
-        }
+        if self.verbose >= 2:
+            log_data = {
+                "current/timesteps": self.num_timesteps,
+                "current/episode_reward": self._current_episode_reward,
+                "current/episode_length": self._current_episode_length,
+            }
 
-        # Add state information to log_data
-        for key, value in log_dict.items():
-            log_data[key] = value
+            # Add state information to log_data
+            for key, value in log_dict.items():
+                log_data[key] = value
 
         # Reset episode stats if the episode has ended
         if self.locals['dones'][0]:
@@ -180,7 +183,12 @@ class WandbCallback(BaseCallback):
             self._current_episode_reward = 0.0
             self._current_episode_length = 0
 
-        wandb.log(log_data)
+            episode_log_dict = self.training_env.envs[0].unwrapped.get_previous_episode_summary()
+            for key, value in episode_log_dict.items():
+                log_data[key] = value
+
+        if log_data:
+            wandb.log(log_data)
 
         return True
 

@@ -48,7 +48,7 @@ model:
   hidden_layers_size: 256
 
 train:
-  total_timesteps: 3000000
+  total_timesteps: 1000000
   log_interval: 1
   eval_freq: 10000
   n_eval_episodes: 5

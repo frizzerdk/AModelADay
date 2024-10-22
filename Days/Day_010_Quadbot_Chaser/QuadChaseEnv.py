@@ -7,7 +7,10 @@ import mujoco
 from pynput import keyboard
 import time
 from omegaconf import OmegaConf, omegaconf
+from gymnasium import error, spaces
+from gymnasium.spaces import Space
 import util
+from collections import defaultdict
 
 import random
 DEFAULT_CAMERA_CONFIG = {
@@ -238,9 +241,13 @@ class QuadChaseEnv(MujocoEnv, utils.EzPickle):
         # render fps
         #self.metadata["render_fps"] = int(1.0 / (self.model.opt.timestep * frame_skip))
 
-        
+        self.current_episode_data = defaultdict(list)
+        self.previous_episode_data = defaultdict(list)
+        self.episode_count = 0
         
         self.reset_model()
+        
+        
     
     def step(self, action):
         self._steps += 1
@@ -257,6 +264,11 @@ class QuadChaseEnv(MujocoEnv, utils.EzPickle):
 
         info = {}
         self.set_previous_features()
+        
+        log_dict = self.get_log_dict()
+        for key, value in log_dict.items():
+            self.current_episode_data[key].append(value)
+        
         return observation, reward, terminated, truncated, info
     
     def set_previous_features(self):
@@ -267,6 +279,29 @@ class QuadChaseEnv(MujocoEnv, utils.EzPickle):
         self.last_steer_velocity = self.data.qvel[[self.qvel_map["steer_FL"], self.qvel_map["steer_FR"], self.qvel_map["steer_BL"], self.qvel_map["steer_BR"]]]
         self.last_drive_velocity = self.data.qvel[[self.qvel_map["drive_FL"], self.qvel_map["drive_FR"], self.qvel_map["drive_BL"], self.qvel_map["drive_BR"]]]
     
+
+    def _set_action_space(self):
+        bounds = self.model.actuator_ctrlrange.copy().astype(np.float32)
+        low, high = bounds.T
+        self.action_space = spaces.Box(low=low, high=high, dtype=np.float32)
+        return self.action_space
+
+    def get_action_space(self):
+        return self.action_space
+    
+
+
+    def do_simulation(self, ctrl, n_frames) -> None:
+        """
+        Step the simulation n number of frames and applying a control action.
+        """
+        # Check control input is contained in the action space
+        if np.array(ctrl).shape != (self.model.nu,):
+            raise ValueError(
+                f"Action dimension mismatch. Expected {(self.model.nu,)}, found {np.array(ctrl).shape}"
+            )
+        self._step_mujoco_simulation(ctrl, n_frames)
+
     def _get_obs(self):
         self.latest_sensor_raw = np.concatenate([self.data.sensordata.copy()])
         steer_pos = self.data.qpos[[self.qpos_map["steer_FL"],
@@ -304,6 +339,9 @@ class QuadChaseEnv(MujocoEnv, utils.EzPickle):
 
     def reset_model(self):
         self._steps = 0
+        self.update_episode_data()
+        self.current_episode_data.clear()
+        
         qpos = self.init_qpos.copy()
         qvel = self.init_qvel.copy()
         #qpos
@@ -441,6 +479,42 @@ class QuadChaseEnv(MujocoEnv, utils.EzPickle):
         for key, value in self.observation_map.items():
             log_dict[f"observation/{key}"] = self.latest_observation[value]
         return log_dict
+
+    def update_episode_data(self):
+        if self.current_episode_data:
+            self.episode_count += 1
+            self.previous_episode_data = self.current_episode_data.copy()
+
+    def get_current_episode_data(self):
+        return dict(self.current_episode_data)
+
+    def get_previous_episode_data(self):
+        return dict(self.previous_episode_data)
+
+    def get_episode_summary(self, episode_data):
+        summary = {}
+        for key, values in episode_data.items():
+            summary[key] = {
+                'mean': np.mean(values),
+                'max': np.max(values),
+                'min': np.min(values),
+                'median': np.median(values),
+                'q1': np.percentile(values, 25),
+                'q3': np.percentile(values, 75)
+            }
+        return summary
+
+    def get_current_episode_summary(self):
+        return self.get_episode_summary(self.current_episode_data)
+
+    def get_previous_episode_summary(self):
+        return self.get_episode_summary(self.previous_episode_data)
+
+    def episode_log_summary(self):
+        return {
+            'current_episode': self.get_current_episode_summary(),
+            'previous_episode': self.get_previous_episode_summary()
+        }
 
 if __name__ == "__main__":
     import MyUtils.Util.Misc as mutil
