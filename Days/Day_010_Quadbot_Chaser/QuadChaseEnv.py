@@ -11,10 +11,16 @@ from gymnasium import error, spaces
 from gymnasium.spaces import Space
 import util
 from collections import defaultdict
+import time
 
 import random
+import matplotlib.pyplot as plt
+from matplotlib.colors import LinearSegmentedColormap
+import io
+
 DEFAULT_CAMERA_CONFIG = {
-    "distance": 15,
+    "distance": 10,
+    "lookat": np.array([0.0, -1, 0.5]),  # x, y, z coordinates
 }
 
 class QuadChaseEnv(MujocoEnv, utils.EzPickle):
@@ -47,6 +53,12 @@ class QuadChaseEnv(MujocoEnv, utils.EzPickle):
 
         ############################################################
         # Set default values for config
+        # Logging
+        self.config.log_state = self.config.get("log_state", False)
+        self.config.log_sensor = self.config.get("log_sensor", False)
+        self.config.log_ctrl = self.config.get("log_ctrl", True)
+        self.config.log_reward = self.config.get("log_reward", True)
+        self.config.log_observation = self.config.get("log_observation", True)
         # Robot physical properties
         self.config.steer_joint_damping = self.config.get("steer_joint_damping", 0.1)
         self.config.drive_joint_damping = self.config.get("drive_joint_damping", 0.05)
@@ -60,6 +72,7 @@ class QuadChaseEnv(MujocoEnv, utils.EzPickle):
         self.config.observation_max_body_linear_vel = self.config.get("observation_max_body_linear_vel", 20)
         self.config.observation_max_body_angular_vel = self.config.get("observation_max_body_angular_vel", 3)
         self.config.observation_max_body_position = self.config.get("observation_max_body_position", 10)     
+        self.config.unit_ranges = self.config.get("unit_ranges", True)
 
         # Environment reset parameters
         self.config.reset_noise_scale = self.config.get("reset_noise_scale", 1)
@@ -71,10 +84,13 @@ class QuadChaseEnv(MujocoEnv, utils.EzPickle):
         self.config.reward_scale_wheel_misalignment = self.config.get("reward_scale_wheel_misalignment", 1.0)
         self.config.reward_scale_position_penalty = self.config.get("reward_scale_position_penalty", 0.0)
         self.config.reward_scale_success_reward = self.config.get("reward_scale_success_reward", 100)
-        self.config.reward_scale_position_error_change = self.config.get("reward_scale_position_error_change", 100.0)
+        self.config.reward_scale_position_error_change = self.config.get("reward_scale_position_error_change", 0.0)
         self.config.reward_scale_distance_closed_to_target = self.config.get("reward_scale_distance_closed_to_target", 0.0)
         self.config.reward_scale_total = self.config.get("reward_scale_total", 1.0)
         self.config.reward_scale_position_error_velocity = self.config.get("reward_scale_position_error_velocity", 10.0)
+        self.config.reward_scale_drive_action_penalty = self.config.get("reward_scale_drive_action_penalty", 1)
+        self.config.reward_scale_steer_action_penalty = self.config.get("reward_scale_steer_action_penalty", 1)
+
         # Other parameters
         self.config.wheel_alignment_threshold = self.config.get("wheel_alignment_threshold", 10)
         ############################################################
@@ -197,7 +213,12 @@ class QuadChaseEnv(MujocoEnv, utils.EzPickle):
             *np.ones(2)*self.config.observation_max_body_position  # body position (2)
         ])
         obs_min = -obs_max
-        observation_space = Box(low=obs_min, high=obs_max, dtype=np.float64)
+        if self.config.unit_ranges:
+            self.observation_space = Box(low=-np.ones_like(obs_min), high=np.ones_like(obs_max), dtype=np.float64)
+            self.observation_space_raw = Box(low=obs_min, high=obs_max, dtype=np.float64)
+        else:
+            self.observation_space = Box(low=obs_min, high=obs_max, dtype=np.float64)
+            self.observation_space_raw = self.observation_space
         # Make a temporary xml file with modified parameters
         file_dir = os.path.dirname(os.path.abspath(__file__))
         temp_xml_file = f"{xml_file}_temp_{random.randint(0, 1000000)}.xml"
@@ -233,7 +254,7 @@ class QuadChaseEnv(MujocoEnv, utils.EzPickle):
         MujocoEnv.__init__(self,
                            temp_xml_file, 
                            frame_skip, 
-                           observation_space=observation_space, 
+                           observation_space=self.observation_space, 
                            default_camera_config=default_camera_config, 
                            **kwargs)
 
@@ -251,10 +272,10 @@ class QuadChaseEnv(MujocoEnv, utils.EzPickle):
     
     def step(self, action):
         self._steps += 1
-        # action[[self.ctrl_map["motor_FL_drive"], self.ctrl_map["motor_FR_drive"],
-        #         self.ctrl_map["motor_BL_drive"], self.ctrl_map["motor_BR_drive"]]] = action[self.ctrl_map["motor_FL_drive"]]
-        # action[[self.ctrl_map["motor_FL_steer"], self.ctrl_map["motor_FR_steer"],
-        #         self.ctrl_map["motor_BL_steer"], self.ctrl_map["motor_BR_steer"]]] = action[self.ctrl_map["motor_FL_steer"]]
+        if self.config.unit_ranges:
+            action_range = self.action_space_raw.high - self.action_space_raw.low
+            action_center = (self.action_space_raw.high + self.action_space_raw.low) / 2
+            action = action_center + action * action_range / 2
         self.do_simulation(action, self.frame_skip)
         observation = self._get_obs()
         
@@ -283,7 +304,12 @@ class QuadChaseEnv(MujocoEnv, utils.EzPickle):
     def _set_action_space(self):
         bounds = self.model.actuator_ctrlrange.copy().astype(np.float32)
         low, high = bounds.T
-        self.action_space = spaces.Box(low=low, high=high, dtype=np.float32)
+        if self.config.unit_ranges:
+            self.action_space = spaces.Box(low=-np.ones_like(low), high=np.ones_like(high), dtype=np.float32)
+            self.action_space_raw = spaces.Box(low=low, high=high, dtype=np.float32)
+        else:
+            self.action_space = spaces.Box(low=low, high=high, dtype=np.float32)
+            self.action_space_raw = self.action_space
         return self.action_space
 
     def get_action_space(self):
@@ -334,6 +360,13 @@ class QuadChaseEnv(MujocoEnv, utils.EzPickle):
             self.latest_sensor_raw[[self.sensor_map["body_pos_x"], # body position (2)
                                     self.sensor_map["body_pos_y"]]]
         ])
+
+        if self.config.unit_ranges:
+            observation_max = self.observation_space_raw.high
+            observation_min = self.observation_space_raw.low
+            observation_center = (observation_max + observation_min) / 2
+            observation_range = observation_max - observation_min
+            self.latest_observation = (self.latest_observation - observation_center) / observation_range
         return self.latest_observation
 
 
@@ -402,22 +435,28 @@ class QuadChaseEnv(MujocoEnv, utils.EzPickle):
         position_error_change = last_position_error - position_error
         position_error_velocity = position_error_change / self.dt
         #### Rewards ####
-        self.reward_breakdown["position_error_change"] = position_error_change
+        
         position_error_change_scaled = position_error_change * self.config.reward_scale_position_error_change
+        self.reward_breakdown["position_error_change"] = position_error_change
         self.reward_breakdown["position_error_change_scaled"] = position_error_change_scaled
-        self.reward_breakdown["position_error_velocity"] = position_error_velocity
+        
         position_error_velocity_scaled = position_error_velocity * self.config.reward_scale_position_error_velocity
+        self.reward_breakdown["position_error_velocity"] = position_error_velocity
         self.reward_breakdown["position_error_velocity_scaled"] = position_error_velocity_scaled
-        self.reward_breakdown["distance_closed_to_target"] = distance_closed_to_target
+        
         distance_closed_to_target_scaled = distance_closed_to_target * self.config.reward_scale_distance_closed_to_target
+        self.reward_breakdown["distance_closed_to_target"] = distance_closed_to_target
         self.reward_breakdown["distance_closed_to_target_scaled"] = distance_closed_to_target_scaled
+        
         success_reward = 0 if position_error > 0.5 else 1
         success_reward_scaled = success_reward * self.config.reward_scale_success_reward
         self.reward_breakdown["success_reward"] = success_reward
         self.reward_breakdown["success_reward_scaled"] = success_reward_scaled
         #### Penalties ####
-        position_penalty = -position_error * self.config.reward_scale_position_penalty  
+        position_penalty = -position_error
+        position_penalty_scaled = position_penalty * self.config.reward_scale_position_penalty
         self.reward_breakdown["position_penalty"] = position_penalty
+        self.reward_breakdown["position_penalty_scaled"] = position_penalty_scaled
         # Wheel alignment penalty
         wheel_vectors = np.array([ # Transpose to get 4 vectors of shape (2,)
             np.cos(self.data.sensordata[[self.sensor_map["steerpos_FL"],
@@ -439,15 +478,41 @@ class QuadChaseEnv(MujocoEnv, utils.EzPickle):
             max(0, target_alignment - abs(dot))
             for dot in dot_products
         ]
-        wheel_misalignment_penalty = -self.config.reward_scale_wheel_misalignment * np.sum(misalignment_penalties)
+        wheel_misalignment_penalty = - np.sum(misalignment_penalties)
+        wheel_misalignment_penalty_scaled = wheel_misalignment_penalty * self.config.reward_scale_wheel_misalignment
         self.reward_breakdown["wheel_misalignment_penalty"] = wheel_misalignment_penalty
+        self.reward_breakdown["wheel_misalignment_penalty_scaled"] = wheel_misalignment_penalty_scaled
+        
         # Action penalty
-        action_penalty = np.sum(np.square(self.data.ctrl))
+        drive_action = self.data.ctrl[[self.ctrl_map["motor_FL_drive"],
+                                      self.ctrl_map["motor_FR_drive"],
+                                      self.ctrl_map["motor_BL_drive"],
+                                      self.ctrl_map["motor_BR_drive"]]]
+        steer_action = self.data.ctrl[[self.ctrl_map["motor_FL_steer"],
+                                      self.ctrl_map["motor_FR_steer"],
+                                      self.ctrl_map["motor_BL_steer"],
+                                      self.ctrl_map["motor_BR_steer"]]]
+        
+
+        steer_action_penalty = -np.sum(np.square(steer_action))
+        drive_action_penalty = -np.sum(np.square(drive_action))
+
+        
+        
+        scaled_drive_action_penalty = drive_action_penalty * self.config.reward_scale_drive_action_penalty
+        scaled_steer_action_penalty = steer_action_penalty * self.config.reward_scale_steer_action_penalty
+        self.reward_breakdown["steer_action_penalty"] = steer_action_penalty
+        self.reward_breakdown["drive_action_penalty"] = drive_action_penalty
+        self.reward_breakdown["drive_action_penalty_scaled"] = scaled_drive_action_penalty
+        self.reward_breakdown["steer_action_penalty_scaled"] = scaled_steer_action_penalty
+
+        action_penalty = steer_action_penalty + drive_action_penalty
+        action_penalty_scaled = (scaled_drive_action_penalty + scaled_steer_action_penalty) * self.config.reward_scale_action_penalty
         self.reward_breakdown["action_penalty"] = action_penalty
-        action_penalty_scaled = action_penalty * self.config.reward_scale_action_penalty
         self.reward_breakdown["action_penalty_scaled"] = action_penalty_scaled
+
         total_reward = success_reward_scaled + distance_closed_to_target_scaled + position_error_change_scaled + position_error_velocity_scaled
-        total_penalty = position_penalty + wheel_misalignment_penalty + action_penalty_scaled
+        total_penalty = position_penalty_scaled + wheel_misalignment_penalty_scaled + action_penalty_scaled
         total_reward_scaled = self.dt * (total_reward + total_penalty) * self.config.reward_scale_total
         self.reward_breakdown["total_reward"] = total_reward
         self.reward_breakdown["total_penalty"] = total_penalty
@@ -463,21 +528,29 @@ class QuadChaseEnv(MujocoEnv, utils.EzPickle):
     def get_log_dict(self):
         log_dict = {}
         # qpos using mappings
-        for key, value in self.qpos_map.items():
-            log_dict[f"state/{key}"] = self.data.qpos[value]
+        if self.config.log_state:   
+            for key, value in self.qpos_map.items():
+                log_dict[f"state/{key}"] = self.data.qpos[value]
         # qvel using mappings
-        for key, value in self.qvel_map.items():
-            log_dict[f"state/{key}"] = self.data.qvel[value]   
+        if self.config.log_state:
+            for key, value in self.qvel_map.items():
+                log_dict[f"state/{key}"] = self.data.qvel[value]   
         # sensor data using mappings
-        for key, value in self.sensor_map.items():
-            log_dict[f"sensor/{key}"] = self.latest_sensor_raw[value]
+        if self.config.log_sensor:
+            for key, value in self.sensor_map.items():
+                log_dict[f"sensor/{key}"] = self.latest_sensor_raw[value]
         # ctrl using mappings
-        for key, value in self.ctrl_map.items():
-            log_dict[f"ctrl/{key}"] = self.data.ctrl[value]
-        for key, value in self.reward_breakdown.items():
-            log_dict[f"reward/{key}"] = value
-        for key, value in self.observation_map.items():
-            log_dict[f"observation/{key}"] = self.latest_observation[value]
+        if self.config.log_ctrl:    
+            for key, value in self.ctrl_map.items():
+                log_dict[f"ctrl/{key}"] = self.data.ctrl[value]
+        # reward breakdown  
+        if self.config.log_reward:
+            for key, value in self.reward_breakdown.items():
+                log_dict[f"reward/{key}"] = value
+        # observation breakdown
+        if self.config.log_observation:
+            for key, value in self.observation_map.items():
+                log_dict[f"observation/{key}"] = self.latest_observation[value]
         return log_dict
 
     def update_episode_data(self):
@@ -491,6 +564,68 @@ class QuadChaseEnv(MujocoEnv, utils.EzPickle):
     def get_previous_episode_data(self):
         return dict(self.previous_episode_data)
 
+    def plot_summary(self,file_path=None,episode_data=None):
+        if episode_data is None:
+            episode_data = self.current_episode_data if len(self.current_episode_data['sensor/body_pos_x']) > 0 else self.previous_episode_data
+        # Check if there's enough data to plot
+        if not episode_data or len(episode_data['sensor/body_pos_x']) == 0:
+            print("Not enough data to generate a plot. Try running the simulation longer.")
+            return None
+
+        # Extract position and velocity data
+        x_positions = episode_data['sensor/body_pos_x']
+        y_positions = episode_data['sensor/body_pos_y']
+        x_velocities = episode_data['sensor/body_linvel_x']
+        y_velocities = episode_data['sensor/body_linvel_y']
+
+        # Calculate speed
+        speeds = np.sqrt(np.array(x_velocities)**2 + np.array(y_velocities)**2)
+
+        # Create a custom colormap
+        colors = ['blue', 'green', 'yellow', 'red']
+        n_bins = 100
+        cmap = LinearSegmentedColormap.from_list('custom', colors, N=n_bins)
+
+        # Create the plot
+        fig, ax = plt.subplots(figsize=(10, 10))
+
+        # Plot the trajectory
+        scatter = ax.scatter(x_positions, y_positions, c=speeds, cmap=cmap, s=10)
+
+        # Plot start and end points
+        ax.plot(x_positions[0], y_positions[0], 'go', markersize=15, label='Start')
+        ax.plot(x_positions[-1], y_positions[-1], 'ro', markersize=15, label='End')
+
+        # Plot target position
+        ax.plot(self.target_pos[0], self.target_pos[1], 'y*', markersize=50, label='Target')
+
+        # Add colorbar
+        cbar = plt.colorbar(scatter)
+        cbar.set_label('Speed')
+
+        # Set labels and title
+        ax.set_xlabel('X Position')
+        ax.set_ylabel('Y Position')
+        ax.set_title('Quadbot Trajectory')
+        ax.legend()
+
+        # Add grid
+        ax.grid(True, linestyle='--', alpha=0.7)
+
+        # Ensure equal aspect ratio
+        ax.set_aspect('equal', 'box')
+        
+        if not file_path:
+            file_path = f"trajectory/quadbot_trajectory_{time.time()}.jpeg"
+        # check if dir exists
+        if not os.path.exists("trajectory"):
+            os.makedirs("trajectory")
+        plt.savefig(file_path, format='jpeg',dpi=150, bbox_inches='tight',pil_kwargs={'quality': 10})
+        # Close the plot to free up memory
+        plt.close(fig)
+
+        return file_path
+
     def get_episode_summary(self, episode_data):
         summary = {}
         for key, values in episode_data.items():
@@ -502,6 +637,8 @@ class QuadChaseEnv(MujocoEnv, utils.EzPickle):
                 'q1': np.percentile(values, 25),
                 'q3': np.percentile(values, 75)
             }
+        
+
         return summary
 
     def get_current_episode_summary(self):
@@ -522,6 +659,10 @@ if __name__ == "__main__":
     os.chdir(os.path.dirname(os.path.abspath(__file__)))
     if os.path.exists("base_config.yaml"):
         cfg = mutil.load_and_override_config(".", "base_config", init_wandb=False, update_wandb=False)
+        cfg.env.log_state = True
+        cfg.env.log_sensor = True
+        cfg.env.log_reward = True
+        cfg.env.log_observation = True
         env = QuadChaseEnv(render_mode="human", max_steps=10000, config=cfg.env)
     else:
         env = QuadChaseEnv(render_mode="human", max_steps=10000)
@@ -535,33 +676,36 @@ if __name__ == "__main__":
     steer_action = 0
     running = True
     reset_flag = False
+    plot_flag = False  # New flag for plotting
 
     print("Use arrow keys to control the quadbot:")
     print("Up/Down: Control drive motors")
     print("Left/Right: Control steering")
     print("Press 'q' to quit")
+    print("Press 'p' to generate and save the plot")  # New instruction
 
     def on_press(key):
-        global drive_action, steer_action, running, reset_flag
+        global drive_action, steer_action, running, reset_flag, plot_flag
         try:
             if key == keyboard.Key.up:
                 drive_action = 1    
             elif key == keyboard.Key.down:
                 drive_action = -1
             elif key == keyboard.Key.left:
-                steer_action = -1
+                steer_action = -0.5
             elif key == keyboard.Key.right:
-                steer_action = 1
+                steer_action = 0.5
             elif key == keyboard.KeyCode.from_char('q'):
                 running = False
             elif key == keyboard.KeyCode.from_char('å'):
                 reset_flag = True
+            elif key == keyboard.KeyCode.from_char('p'):  # New key for plotting
+                plot_flag = True
         except AttributeError:
             pass
 
     def on_release(key):
         global drive_action, steer_action
-        print(key)
         if key in [keyboard.Key.up, keyboard.Key.down]:
             drive_action = 0
         elif key in [keyboard.Key.left, keyboard.Key.right]:
@@ -575,6 +719,14 @@ if __name__ == "__main__":
             if reset_flag:
                 observation, info = env.reset()
                 reset_flag = False
+            elif plot_flag:
+                print("Generating plot...")
+                plot_buffer = env.plot_summary()
+                if plot_buffer is not None:
+                    with open("quadbot_trajectory.png", "wb") as f:
+                        f.write(plot_buffer.getbuffer())
+                    print("Plot saved as 'quadbot_trajectory.png'")
+                plot_flag = False
             else:
                 action = [drive_action] * 4 + [steer_action] * 4
                 observation, reward, terminated, truncated, info = env.step(action)

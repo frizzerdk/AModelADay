@@ -14,11 +14,12 @@ import argparse
 import torch
 import os
 import sys
-from typing import Any
+from typing import Any, Callable
 from QuadChaseEnv import QuadChaseEnv
 from gymnasium.wrappers import RecordVideo, NormalizeObservation
 from wandb.integration.sb3 import WandbCallback
 from stable_baselines3.common.vec_env import DummyVecEnv, VecNormalize
+from util import plot_summary
 
 # Get the directory of the current script
 script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -29,7 +30,7 @@ assert torch.cuda.is_available(), "No GPU available"
 
 def train():
     # Load configuration
-    cfg = util.load_and_override_config(".", "base_config", init_wandb=True, update_wandb=True)
+    cfg = util.load_and_override_config(".", "base_config", init_wandb=True, update_wandb=True,wandb_init_kwargs={"sync_tensorboard": True})
     print(OmegaConf.to_yaml(cfg))
 
     # Add code to the wandb artifacts
@@ -39,12 +40,21 @@ def train():
 
     # Initialize WandB
     wandb.gym.monitor()  # Enable video logging
+    #wandb.define_metric("*", step_metric="episode_count")
     wandb.define_metric("eval/mean_reward", summary="mean")
     wandb.define_metric("eval/mean_ep_length", summary="mean")
     wandb.define_metric("eval/min_ep_reward", summary="mean")
-    wandb.define_metric("eval/success_rate", summary="mean")
-    wandb.define_metric("episode/*", summary="mean")
-    wandb.define_metric("reward/*", summary="mean")
+    wandb.define_metric("episode/*", summary="mean",step_metric="episode_count")
+    wandb.define_metric("reward/*", summary="mean",step_metric="episode_count")
+    wandb.define_metric("state/*", summary="mean",step_metric="episode_count")
+    wandb.define_metric("sensor/*", summary="mean",step_metric="episode_count")
+    wandb.define_metric("ctrl/*", summary="mean",step_metric="episode_count")
+    wandb.define_metric("observation/*", summary="mean",step_metric="episode_count")
+    wandb.define_metric("eval/*", summary="mean",step_metric="episode_count")
+    
+    wandb.define_metric("train/*", step_metric="global_step")
+    # set default step
+
 
     # Create the environments
     env = DummyVecEnv([lambda: QuadChaseEnv(max_steps=cfg.env.max_steps,
@@ -112,10 +122,27 @@ def train():
     print(f"Using device: {device}")
     # custom network
     policy_kwargs = dict(activation_fn=torch.nn.LeakyReLU,
-                         net_arch=dict(pi=[cfg.model.hidden_layers_size, cfg.model.hidden_layers_size], vf=[cfg.model.hidden_layers_size, cfg.model.hidden_layers_size]))
+                         net_arch=dict(pi=[cfg.model.hidden_layers_size, cfg.model.hidden_layers_size], vf=[cfg.model.hidden_layers_size, cfg.model.hidden_layers_size]),
+                         log_std_init=cfg.model.log_std_init)
     # Load the model with GPU support
+
+    def warmup_linear_schedule(initial_lr: float, peak_lr: float, final_lr: float, warmup_fraction: float = 0.1) -> Callable[[float], float]:
+        def schedule(progress_remaining: float) -> float:
+            if progress_remaining > 1 - warmup_fraction:
+                # Warmup phase
+                warmup_progress = (progress_remaining - (1 - warmup_fraction)) / warmup_fraction
+                return initial_lr + (peak_lr - initial_lr) * (1 - warmup_progress)
+            else:
+                # Linear decay phase
+                return final_lr + (progress_remaining / (1 - warmup_fraction)) * (peak_lr - final_lr)
+        return schedule
+    learning_rate = warmup_linear_schedule(cfg.model.learning_rate/10,
+                                            cfg.model.learning_rate,
+                                            cfg.model.learning_rate/10, 
+                                            warmup_fraction=0.1)
+
     model = PPO(cfg.model.policy, env, verbose=1, policy_kwargs=policy_kwargs,
-                learning_rate=cfg.model.learning_rate, 
+                learning_rate=learning_rate,
                 n_steps=cfg.model.n_steps,
                 batch_size=cfg.model.batch_size,
                 n_epochs=cfg.model.n_epochs,
@@ -125,9 +152,11 @@ def train():
                 ent_coef=cfg.model.ent_coef,
                 vf_coef=cfg.model.vf_coef,
                 max_grad_norm=cfg.model.max_grad_norm,
+                sde_sample_freq=cfg.model.sde_sample_freq,
+
                 use_sde=cfg.model.use_sde,
-                
-                device=device)
+                device=device,
+                tensorboard_log=cfg.tensorboard_log)
 
     # Train the model
     model.learn(
@@ -154,12 +183,15 @@ class WandbCallback(BaseCallback):
         super(WandbCallback, self).__init__(verbose)
         self._current_episode_reward = 0.0
         self._current_episode_length = 0
+        self._current_episode_count = 0
+        self.plot_freq = 50
+        self.log_buffer = []
     
     def _on_step(self) -> bool:
         # Update current episode stats
         self._current_episode_reward += self.locals['rewards'][0]
         self._current_episode_length += 1
-
+        
         # Get the current state
         log_dict = self.training_env.envs[0].unwrapped.get_log_dict()
 
@@ -178,6 +210,7 @@ class WandbCallback(BaseCallback):
 
         # Reset episode stats if the episode has ended
         if self.locals['dones'][0]:
+            self._current_episode_count += 1
             log_data["episode/reward"] = self._current_episode_reward
             log_data["episode/length"] = self._current_episode_length
             self._current_episode_reward = 0.0
@@ -186,6 +219,16 @@ class WandbCallback(BaseCallback):
             episode_log_dict = self.training_env.envs[0].unwrapped.get_previous_episode_summary()
             for key, value in episode_log_dict.items():
                 log_data[key] = value
+            log_data["episode_count"] = self._current_episode_count
+            
+            episode_data = self.training_env.envs[0].unwrapped.get_previous_episode_data()
+            
+            self.log_buffer.append(episode_data)
+            if len(self.log_buffer) > self.plot_freq:
+                plot_file = plot_summary(self.log_buffer, target_pos=self.training_env.envs[0].unwrapped.target_pos)
+                if plot_file:
+                    wandb.log({"episode_plot": wandb.Image(plot_file)})
+                self.log_buffer = []
 
         if log_data:
             wandb.log(log_data)

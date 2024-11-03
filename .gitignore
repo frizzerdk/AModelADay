@@ -6,6 +6,9 @@
 **/quadbot_video/*
 **/checkpoints/*
 **/monitor/*
+**/trajectory/*
+**/tensorboard/*
+
 
 # wandb
 **/wandb/

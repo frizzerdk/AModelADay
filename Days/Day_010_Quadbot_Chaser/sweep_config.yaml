@@ -1,79 +1,116 @@
 program: train.py
-method: bayes
+method: random
 metric:
   name: eval/mean_reward.mean
   goal: maximize
 parameters:
-  # Environment parameters
-  env.frame_skip:
-    values: [5, 10, 20]
-  env.steer_joint_damping:
-    distribution: uniform
-    min: 0.01
-    max: 0.5
-  env.drive_joint_damping:
-    distribution: uniform
-    min: 0.05
-    max: 0.5
-  env.steer_actuator_gain:
-    distribution: uniform
-    min: 1
-    max: 10
-  env.drive_actuator_gain:
-    distribution: uniform
-    min: 1
-    max: 10
-  env.reset_noise_scale:
+  # Reward scale parameters
+  env.reward_scale_drive_action_penalty:
     distribution: uniform
     min: 0
-    max: 2
-  env.reset_pos_offset:
+    max: 0.01
+  env.reward_scale_steer_action_penalty:
     distribution: uniform
-    min: 1
-    max: 4
-  env.target_pos_distance:
+    min: 0
+    max: 1
+  # env.reward_scale_total:
+  #   distribution: uniform
+  #   min: 0
+  #   max: 1
+  env.reward_scale_position_error_velocity:
     distribution: uniform
-    min: 2
+    min: 0.1
+    max: 100
+  # env.reward_scale_distance_closed_to_target:
+  #   values: [0, 1, 10, 100]
+  # env.reward_scale_position_error_change:
+  #   values: [0, 1, 10, 100]
+  env.reward_scale_wheel_misalignment:
+    distribution: uniform
+    min: 0
     max: 5
-  env.steer_kp:
+  # env.reward_scale_position_penalty:
+  #   values: [0, 0.01, 1, 10]
+  env.reward_scale_success_reward:
     distribution: uniform
-    min: 5
-    max: 20
+    min: 0.1
+    max: 100
+  # Environment parameters
+  # env.frame_skip: 
+  #   values: [5, 10, 20]
+  # env.steer_joint_damping:
+  #   distribution: uniform
+  #   min: 0.01
+  #   max: 0.5
+  # env.drive_joint_damping:
+  #   distribution: uniform
+  #   min: 0.05
+  #   max: 0.5
+  # env.steer_actuator_gain:
+  #   distribution: uniform
+  #   min: 1
+  #   max: 10
+  # env.drive_actuator_gain:
+  #   distribution: uniform
+  #   min: 1
+  #   max: 10
+  # env.reset_noise_scale:
+  #   distribution: uniform
+  #   min: 0
+  #   max: 2
+  # env.reset_pos_offset:
+  #   distribution: uniform
+  #   min: 1
+  #   max: 4
+  # env.target_pos_distance:
+  #   distribution: uniform
+  #   min: 2
+  #   max: 5
+  # env.steer_kp:
+  #   distribution: uniform
+  #   min: 5
+  #   max: 20
 
   # Model parameters
-  model.learning_rate:
+  # model.learning_rate:
+  #   distribution: uniform
+  #   min: 0.0001
+  #   max: 0.001
+  # model.n_steps:
+  #   values: [2048, 4096, 8192]
+  # model.batch_size:
+  #   values: [32, 64, 128, 256]
+  # model.n_epochs:
+  #   values: [2, 5, 10]
+  # model.gamma:
+  #   values: [0.8,0.9, 0.95, 0.99, 0.999]
+  # model.gae_lambda:
+  #   distribution: uniform
+  #   min: 0.9
+  #   max: 1.0
+  # model.clip_range:
+  #   distribution: uniform
+  #   min: 0.1
+  #   max: 0.3
+  # model.ent_coef:
+  #   distribution: uniform
+  #   min: -5
+  #   max: -2
+  # model.vf_coef:
+  #   distribution: uniform
+  #   min: 0.1
+  #   max: 1.0
+  # model.max_grad_norm:
+  #   distribution: uniform
+  #   min: 0.1
+  #   max: 1.0
+  model.use_sde:
+    values: [true, false]
+  model.log_std_init:
     distribution: uniform
-    min: 0.0001
-    max: 0.001
-  model.n_steps:
-    values: [2048, 4096, 8192]
-  model.batch_size:
-    values: [32, 64, 128, 256]
-  model.n_epochs:
-    values: [2, 5, 10]
-  model.gamma:
-    values: [0.8,0.9, 0.95, 0.99, 0.999]
-  model.gae_lambda:
-    distribution: uniform
-    min: 0.9
-    max: 1.0
-  model.clip_range:
-    distribution: uniform
-    min: 0.1
-    max: 0.3
-  model.ent_coef:
-    distribution: uniform
-    min: -5
-    max: -2
-  model.vf_coef:
-    distribution: uniform
-    min: 0.1
-    max: 1.0
-  model.max_grad_norm:
-    distribution: uniform
-    min: 0.1
-    max: 1.0
+    min: -2
+    max: 1
   model.sde_sample_freq:
-    values: [-1, 100, 1000, 10000]
-  model.hidden_layers_size:
-    values: [64, 256, 512, 1024]
+    values: [-1, 10, 1000, 10000]
+  # model.hidden_layers_size:
+  #   values: [64, 256, 512, 1024]

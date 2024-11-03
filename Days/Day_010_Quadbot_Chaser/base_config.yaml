@@ -1,4 +1,4 @@
-project_name: quadbot_chaser_ppo
+project_name: quadbot_chaser_ppo_reward_sweep_2
 username: frizzerdk
 
 env:
@@ -17,35 +17,45 @@ env:
   drive_joint_damping: 0.05
   steer_actuator_gain: 2
   drive_actuator_gain: 3
-  reset_noise_scale: 1
+  reset_noise_scale: 3
   reset_pos_offset: 2
   target_pos_distance: 3
-  reward_scale_action_penalty: 0.01
-  reward_scale_wheel_misalignment: 1.0
+
+  reward_scale_action_penalty: 1
+  reward_scale_drive_action_penalty: 0.001
+  reward_scale_steer_action_penalty: 1
+  reward_scale_wheel_misalignment: 0.5
   reward_scale_position_penalty: 0.0
-  reward_scale_success_reward: 10
-  reward_scale_position_error_change: 10.0
+  reward_scale_success_reward: 50
+  reward_scale_position_error_change: 0.0
   reward_scale_distance_closed_to_target: 0.0
-  reward_scale_position_error_velocity: 5.0
+  reward_scale_position_error_velocity: 50.0
+
   wheel_alignment_threshold: 10
-  reward_scale_total: 1.0
+  reward_scale_total: 10.0
   steer_kp: 10
+  log_state: true
+  log_sensor: true
+  log_reward: true
+  log_observation: true
+  plot_summary: true
   
 model:
   policy: MlpPolicy
   learning_rate: 3e-4
   n_steps: 2048
-  batch_size: 64
-  n_epochs: 10
+  batch_size: 256
+  n_epochs: 3
   gamma: 0.99
   gae_lambda: 0.95
   clip_range: 0.2
-  ent_coef: 0.001
+  ent_coef: 0.0001
   vf_coef: 0.5
   max_grad_norm: 0.5
-  use_sde: true
-  sde_sample_freq: -1
+  use_sde: false
+  sde_sample_freq: 10
   hidden_layers_size: 256
+  log_std_init: -0.5
 
 train:
   total_timesteps: 1000000
@@ -67,3 +77,4 @@ video_frame_skip: 5
 log_dir: ./logs
 checkpoint_path: ./checkpoints
 is_sweep: false
+tensorboard_log: ./tensorboard

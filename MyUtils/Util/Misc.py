@@ -53,7 +53,7 @@ def getArgsDict():
         else:
             print(f"Ignoring invalid parameter: {param}")
             
-def load_and_override_config(config_dir, config_name, manual_overrides={}, init_wandb=False,update_wandb=True,verbosity=0):
+def load_and_override_config(config_dir, config_name, manual_overrides={}, init_wandb=False,update_wandb=True,verbosity=0,wandb_init_kwargs={}):
     """
     Load configuration with Hydra, manually override parameters, and integrate with WandB.
 
@@ -95,7 +95,7 @@ def load_and_override_config(config_dir, config_name, manual_overrides={}, init_
     
     if wandb.run is None and init_wandb:
         # Initialize WandB if it's not already initialized
-        wandb.init(project=cfg.project_name)
+        wandb.init(project=cfg.project_name,**wandb_init_kwargs)
     # Check if running under WandB and apply WandB configuration if it's a sweep
     if wandb.run is not None:
         # Assuming wandb has been initialized outside this function in your main workflow
