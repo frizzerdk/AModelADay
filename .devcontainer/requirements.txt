@@ -34,3 +34,5 @@ anthropic
 langchain-community
 langchain-openai
 pynput
+jax
+jaxlib

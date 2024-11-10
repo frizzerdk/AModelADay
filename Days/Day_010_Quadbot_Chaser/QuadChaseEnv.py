@@ -36,6 +36,8 @@ class QuadChaseEnv(MujocoEnv, utils.EzPickle):
                  max_steps : int = 1000,
                  **kwargs
                  ):
+        
+
         # init local variables
         self._max_steps = max_steps
         self._steps = 0
@@ -657,6 +659,7 @@ if __name__ == "__main__":
     import MyUtils.Util.Misc as mutil
     # Change dir to current file
     os.chdir(os.path.dirname(os.path.abspath(__file__)))
+    
     if os.path.exists("base_config.yaml"):
         cfg = mutil.load_and_override_config(".", "base_config", init_wandb=False, update_wandb=False)
         cfg.env.log_state = True

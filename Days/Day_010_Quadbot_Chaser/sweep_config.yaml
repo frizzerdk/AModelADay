@@ -1,116 +1,98 @@
 program: train.py
-method: random
+method: bayes
 metric:
-  name: eval/mean_reward.mean
+  name: reward/success_reward.mean.mean
   goal: maximize
+
 parameters:
-  # Reward scale parameters
+
+  # Observation space parameters
+  env.observation_max_wheel_steer_vel:
+    distribution: normal
+    mu: 5
+    sigma: 0.5
+  env.observation_max_wheel_drive_vel:
+    distribution: normal
+    mu: 100
+    sigma: 10
+  env.observation_max_body_linear_vel:
+    distribution: normal
+    mu: 20
+    sigma: 2
+  env.observation_max_body_angular_vel:
+    distribution: normal
+    mu: 3
+    sigma: 0.3
+  env.observation_max_body_position:
+    distribution: normal
+    mu: 10
+    sigma: 1
+
+
+  # Reward parameters
+  env.reward_scale_action_penalty:
+    distribution: normal
+    mu: 1
+    sigma: 0.1
   env.reward_scale_drive_action_penalty:
-    distribution: uniform
-    min: 0
-    max: 0.01
+    distribution: normal
+    mu: 0.001
+    sigma: 0.0001
   env.reward_scale_steer_action_penalty:
-    distribution: uniform
-    min: 0
-    max: 1
-  # env.reward_scale_total:
-  #   distribution: uniform
-  #   min: 0
-  #   max: 1
-  env.reward_scale_position_error_velocity:
-    distribution: uniform
-    min: 0.1
-    max: 100
-  # env.reward_scale_distance_closed_to_target:
-  #   values: [0, 1, 10, 100]
-  # env.reward_scale_position_error_change:
-  #   values: [0, 1, 10, 100]
+    distribution: normal
+    mu: 1
+    sigma: 0.1
   env.reward_scale_wheel_misalignment:
-    distribution: uniform
-    min: 0
-    max: 5
-  # env.reward_scale_position_penalty:
-  #   values: [0, 0.01, 1, 10]
+    distribution: normal
+    mu: 0.5
+    sigma: 0.05
+  env.reward_scale_position_penalty:
+    distribution: normal
+    mu: 0.0
+    sigma: 0.01
   env.reward_scale_success_reward:
-    distribution: uniform
-    min: 0.1
-    max: 100
-  # Environment parameters
-  # env.frame_skip: 
-  #   values: [5, 10, 20]
-  # env.steer_joint_damping:
-  #   distribution: uniform
-  #   min: 0.01
-  #   max: 0.5
-  # env.drive_joint_damping:
-  #   distribution: uniform
-  #   min: 0.05
-  #   max: 0.5
-  # env.steer_actuator_gain:
-  #   distribution: uniform
-  #   min: 1
-  #   max: 10
-  # env.drive_actuator_gain:
-  #   distribution: uniform
-  #   min: 1
-  #   max: 10
-  # env.reset_noise_scale:
-  #   distribution: uniform
-  #   min: 0
-  #   max: 2
-  # env.reset_pos_offset:
-  #   distribution: uniform
-  #   min: 1
-  #   max: 4
-  # env.target_pos_distance:
-  #   distribution: uniform
-  #   min: 2
-  #   max: 5
-  # env.steer_kp:
-  #   distribution: uniform
-  #   min: 5
-  #   max: 20
+    distribution: normal
+    mu: 50
+    sigma: 5
+  env.reward_scale_position_error_change:
+    distribution: normal
+    mu: 0.0
+    sigma: 0.01
+  env.reward_scale_distance_closed_to_target:
+    distribution: normal
+    mu: 0.0
+    sigma: 0.01
+
+
 
   # Model parameters
-  # model.learning_rate:
-  #   distribution: uniform
-  #   min: 0.0001
-  #   max: 0.001
-  # model.n_steps:
-  #   values: [2048, 4096, 8192]
-  # model.batch_size:
-  #   values: [32, 64, 128, 256]
-  # model.n_epochs:
-  #   values: [2, 5, 10]
-  # model.gamma:
-  #   values: [0.8,0.9, 0.95, 0.99, 0.999]
-  # model.gae_lambda:
-  #   distribution: uniform
-  #   min: 0.9
-  #   max: 1.0
-  # model.clip_range:
-  #   distribution: uniform
-  #   min: 0.1
-  #   max: 0.3
-  # model.ent_coef:
-  #   distribution: uniform
-  #   min: -5
-  #   max: -2
-  # model.vf_coef:
-  #   distribution: uniform
-  #   min: 0.1
-  #   max: 1.0
-  # model.max_grad_norm:
-  #   distribution: uniform
-  #   min: 0.1
-  #   max: 1.0
-  model.use_sde:
-    values: [true, false]
+  model.learning_rate:
+    distribution: normal
+    mu: 0.0003
+    sigma: 0.00003
+  model.n_epochs:
+    values: [2, 3, 4, 5]
+  model.gamma:
+    values: [0.85, 0.9, 0.95, 0.99, 0.995, 0.999, 0.9995]
+  model.gae_lambda:
+    values: [0.85, 0.9, 0.95, 0.99, 0.995, 0.999, 0.9995]
+  model.clip_range:
+    distribution: normal
+    mu: 0.2
+    sigma: 0.02
+  model.ent_coef:
+    distribution: normal
+    mu: 0.0001
+    sigma: 0.00001
+  model.vf_coef:
+    distribution: normal
+    mu: 0.5
+    sigma: 0.05
+  model.max_grad_norm:
+    distribution: normal
+    mu: 0.5
+    sigma: 0.05
   model.log_std_init:
-    distribution: uniform
-    min: -2
-    max: 1
-  model.sde_sample_freq:
-    values: [-1, 10, 1000, 10000]
-  # model.hidden_layers_size:
-  #   values: [64, 256, 512, 1024]
+    distribution: normal
+    mu: -0.6
+    sigma: 0.1
